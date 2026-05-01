@@ -17,11 +17,10 @@ import SignupPage from './pages/SignupPage';
 import AIAnalysisPage from './pages/AIAnalysisPage';
 import ChatPage from './pages/ChatPage';
 import EventPage from './pages/EventPage';
-import EducationPage from './pages/EducationPage';
 import SubmitPage from './pages/SubmitPage';
 import SubmitClaimPage from './pages/SubmitClaimPage';
 import AnalyticsPage from './pages/AnalyticsPage';
-import CollectiveIntelligenceDashboard from './components/collective/CollectiveIntelligenceDashboard';
+
 
 import './index.css';
 import './i18n';
@@ -84,8 +83,6 @@ function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/event/:id" element={<EventPage />} />
                 <Route path="/ai-analysis/:id" element={<AIAnalysisPage />} />
-                <Route path="/collective-intelligence" element={<CollectiveIntelligenceDashboard />} />
-                <Route path="/education" element={<EducationPage />} />
                 <Route path="/submit/claim" element={<SubmitClaimPage />} />
                 <Route path="/submit" element={<SubmitPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
