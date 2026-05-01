@@ -1,0 +1,59 @@
+{
+  "name": "pichai-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "axios": "^1.13.2",
+    "chart.js": "^4.5.1",
+    "date-fns": "^4.1.0",
+    "i18next": "^23.16.8",
+    "i18next-browser-languagedetector": "^8.2.1",
+    "i18next-http-backend": "^3.0.4",
+    "jwt-decode": "^4.0.0",
+    "react": "^18.2.0",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^18.2.0",
+    "react-i18next": "^13.5.0",
+    "react-router-dom": "^6.30.2",
+    "react-slider": "^2.0.6",
+    "react-swipeable": "^7.0.2",
+    "recharts": "^2.15.4",
+    "socket.io-client": "^4.8.3",
+    "typescript": "^4.9.5"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.20",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "postcss": "^8.4.47",
+    "react-scripts": "5.0.1",
+    "tailwindcss": "^3.4.17"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "eslintConfig": {
+    "extends": ["react-app", "react-app/jest"],
+    "rules": {
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn"
+    }
+  }
+}

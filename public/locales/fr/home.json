@@ -1,0 +1,40 @@
+{
+  "hero": {
+    "search_placeholder": "Rechercher un événement, un claim…",
+    "slide1": {
+      "eyebrow": "Intelligence collective · Haïti",
+      "headline": "Comprendre ce qui se passe,\nen temps réel.",
+      "sub": "PichAI transforme les informations dispersées en signaux clairs grâce à la contribution des citoyens et à l’analyse intelligente.",
+      "cta": "Explorer les sujets",
+      "statLabel": "Participants actifs"
+    },
+    "slide2": {
+      "eyebrow": "Participation citoyenne",
+      "headline": "Chaque avis compte.",
+      "sub": "Exprimez votre perception sur les événements et contribuez à une vision collective plus claire.",
+      "cta": "Voir les analyses",
+      "statLabel": "Tendance collective"
+    },
+    "slide3": {
+      "eyebrow": "IA × Intelligence humaine",
+      "headline": "Des données brutes\nà la clarté.",
+      "sub": "Notre IA analyse les signaux citoyens et les sources fiables pour produire des lectures simples et utiles.",
+      "cta": "Explorer les insights",
+      "statLabel": "Analyses générées"
+    },
+    "slide4": {
+      "eyebrow": "Transparence",
+      "headline": "Voir plus clair.\nDécider mieux.",
+      "sub": "Suivez les actions, observez les évolutions et construisez votre propre compréhension des faits.",
+      "cta": "Découvrir",
+      "statLabel": "Sujets suivis"
+    }, 
+    "slide5": {
+      "eyebrow": "Anticipation Collective",
+      "headline": "Devancez les\névénements.",
+      "sub": "Partagez votre lecture des faits économiques et sociaux. Votre analyse s'ajoute à celle des autres pour anticiper les tendances.",
+      "cta": "Voir les tendances",
+      "statLabel": "Précision des modèles"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+# Dépendances
+node_modules/
+
+# Build
+.next/
+dist/
+build/
+out/
+
+# Environnement (ne jamais commiter)
+.env
+.env.local
+.env.production
+.env.development
+
+# Cache
+.cache/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

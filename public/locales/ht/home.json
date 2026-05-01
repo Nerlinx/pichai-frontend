@@ -1,0 +1,40 @@
+{
+  "hero": {
+    "search_placeholder": "Chèche yon evènman, yon deklarasyon...",
+    "slide1": {
+      "eyebrow": "Entèlijans kolektif · Ayiti",
+      "headline": "Konprann sa k ap pase,\nan tan reyèl.",
+      "sub": "PichAI transfòme enfòmasyon ki gaye yo an siyal ki klè gras ak patisipasyon sitwayen yo ak yon analiz entèlijan.",
+      "cta": "Esplore sijè yo",
+      "statLabel": "Moun k ap patisipe"
+    },
+    "slide2": {
+      "eyebrow": "Patisipasyon sitwayen",
+      "headline": "Chak avi konte.",
+      "sub": "Bay fason ou wè evènman yo epi ede rann vizyon kolektif la pi klè.",
+      "cta": "Gade analiz yo",
+      "statLabel": "Tandans kolektif"
+    },
+    "slide3": {
+      "eyebrow": "IA × Entèlijans moun",
+      "headline": "Soti nan done brit\npou rive nan klète.",
+      "sub": "IA nou an analize siyal sitwayen yo ak sous ki serye yo pou l bay eksplikasyon ki senp epi itil.",
+      "cta": "Esplore analiz yo",
+      "statLabel": "Analiz ki fèt"
+    },
+    "slide4": {
+      "eyebrow": "Transparans",
+      "headline": "Wè pi klè.\nPran pi bon desizyon.",
+      "sub": "Suiv aksyon yo, gade jan sa ap evolye epi fè pwòp konpreyansyon pa w sou reyalite a.",
+      "cta": "Dekouvri",
+      "statLabel": "Sijè n ap suiv"
+    }, 
+    "slide5": {
+      "eyebrow": "Prevewa Ansanm",
+      "headline": "Pran devan sou\nevènman yo.",
+      "sub": "Pataje fason ou konprann reyalite ekonomik ak sosyal yo. Analiz ou a ap ajoute sou pa lòt moun yo pou wè kote tandans yo prale.",
+      "cta": "Wè tandans yo",
+      "statLabel": "Presizyon modèl yo"
+    }
+  }
+}
