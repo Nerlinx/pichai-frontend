@@ -24,14 +24,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import './index.css';
 import './i18n';
 
-/**
- *  MODE PUBLIC / PRODUCTION LOCK
- * true = uniquement Home accessible
- * false = toutes les pages accessibles
- */
-const PUBLIC_MODE = true;
-
-// Layout principal
+// Layout avec Header/Footer
 const MainLayout = ({ children }) => (
   <div
     className="min-h-screen flex flex-col"
@@ -59,60 +52,41 @@ function App() {
   return (
     <ThemeProvider>
       <Router>
+        <Routes>
 
-        {/*  MODE PUBLIC : HOME ONLY */}
-        {PUBLIC_MODE ? (
-          <Routes>
-            <Route path="/" element={
-              <MainLayout>
-                <HomePage />
-              </MainLayout>
-            } />
+          {/* Auth */}
+          <Route path="/connexion" element={
+            <AuthLayout><LoginPage /></AuthLayout>
+          } />
+          <Route path="/inscription" element={
+            <AuthLayout><SignupPage /></AuthLayout>
+          } />
 
-            {/* redirection de tout le reste vers Home */}
+          {/* Chat en pleine page (sans Header/Footer) */}
+          <Route path="/chat/:claimId" element={<ChatPage />} />
+
+          {/* Admin */}
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
+          {/* App principale avec Header/Footer */}
+          <Route element={<MainLayout />}>
+            <Route index element={<HomePage />} />            {/* "/" */}
+            <Route path="discussions" element={<DiscussionPage />} />
+            <Route path="live" element={<LivePage />} />
+            <Route path="insights" element={<InsightsPage />} />
+            <Route path="how-it-works" element={<HowItWorksPage />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="event/:id" element={<EventPage />} />
+            <Route path="ai-analysis/:id" element={<AIAnalysisPage />} />
+            <Route path="submit/claim" element={<SubmitClaimPage />} />
+            <Route path="submit" element={<SubmitPage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
+
+            {/* Redirection 404 → page d’accueil */}
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        ) : (
-          /*  MODE FULL APP (DEV / FUTUR PROD) */
-          <Routes>
+          </Route>
 
-            {/* Auth */}
-            <Route path="/connexion" element={
-              <AuthLayout><LoginPage /></AuthLayout>
-            } />
-
-            <Route path="/inscription" element={
-              <AuthLayout><SignupPage /></AuthLayout>
-            } />
-
-            {/* Chat */}
-            <Route path="/chat/:claimId" element={<ChatPage />} />
-
-            {/* Admin */}
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-
-            {/* App principale */}
-            <Route path="/*" element={
-              <MainLayout>
-                <Routes>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/discussions" element={<DiscussionPage />} />
-                  <Route path="/live" element={<LivePage />} />
-                  <Route path="/insights" element={<InsightsPage />} />
-                  <Route path="/how-it-works" element={<HowItWorksPage />} />
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/event/:id" element={<EventPage />} />
-                  <Route path="/ai-analysis/:id" element={<AIAnalysisPage />} />
-                  <Route path="/submit/claim" element={<SubmitClaimPage />} />
-                  <Route path="/submit" element={<SubmitPage />} />
-                  <Route path="/analytics" element={<AnalyticsPage />} />
-                </Routes>
-              </MainLayout>
-            } />
-
-          </Routes>
-        )}
-
+        </Routes>
       </Router>
     </ThemeProvider>
   );

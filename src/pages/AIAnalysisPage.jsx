@@ -26,7 +26,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 // ─── Configuration API ───────────────────────────────────────────
-const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.pichai.tech';
 
 const getToken = () =>
   localStorage.getItem('access_token') || sessionStorage.getItem('access_token');

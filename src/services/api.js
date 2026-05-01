@@ -6,7 +6,7 @@ import axios from 'axios';
 
 // ── INSTANCE AXIOS ───────────────────────────────────────────────
 const api = axios.create({
-  baseURL    : process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000',
+  baseURL    : process.env.REACT_APP_API_BASE_URL || 'https://api.pichai.tech',
   headers    : { 'Content-Type': 'application/json', Accept: 'application/json' },
   timeout    : Number(process.env.REACT_APP_API_TIMEOUT) || 15000,
   withCredentials: false,
