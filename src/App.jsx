@@ -56,36 +56,36 @@ function App() {
         <Routes>
 
           {/* Auth */}
-          <Route path="/connexion" element={
+          {/*<Route path="/connexion" element={
             <AuthLayout><LoginPage /></AuthLayout>
-          } />
+          } />*/}
 
-          <Route path="/inscription" element={
+          {/*<Route path="/inscription" element={
             <AuthLayout><SignupPage /></AuthLayout>
-          } />
+          } />*/}
 
           {/* Chat en pleine page (sans Header/Footer) */}
           <Route path="/chat/:claimId" element={<ChatPage />} />
 
           {/* Admin */}
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          {/*<Route path="/admin/dashboard" element={<AdminDashboard />} />*/}
 
           {/* App principale */}
           <Route path="/*" element={
             <MainLayout>
               <Routes>
                 <Route path="/" element={<HomePage />} />
-                <Route path="" element={<DiscussionPage />} /> 
+                {/*<Route path="" element={<DiscussionPage />} /> */}
                  {/*<Route path="/event/:eventId" element={<DiscussionPage />} />*/}
-                <Route path="/live" element={<LivePage />} />
-                <Route path="/insights" element={<InsightsPage />} />
-                <Route path="/how-it-works" element={<HowItWorksPage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/event/:id" element={<EventPage />} />
+                {/*<Route path="/live" element={<LivePage />} />*/}
+                {/*<Route path="/insights" element={<InsightsPage />} />*/}
+                {/*<Route path="/how-it-works" element={<HowItWorksPage />} />
+                {/*<Route path="/dashboard" element={<DashboardPage />} />*/}
+                {/*<Route path="/event/:id" element={<EventPage />} />*/}
                 <Route path="/ai-analysis/:id" element={<AIAnalysisPage />} />
                 <Route path="/submit/claim" element={<SubmitClaimPage />} />
                 <Route path="/submit" element={<SubmitPage />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
+                {/*<Route path="/analytics" element={<AnalyticsPage />} />*/}
               </Routes>
             </MainLayout>
           } />
