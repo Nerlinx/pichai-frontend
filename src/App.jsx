@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 
 import Header from './components/layout/Header';
@@ -21,11 +21,17 @@ import SubmitPage from './pages/SubmitPage';
 import SubmitClaimPage from './pages/SubmitClaimPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 
-
 import './index.css';
 import './i18n';
 
-// Layout avec Header/Footer
+/**
+ *  MODE PUBLIC / PRODUCTION LOCK
+ * true = uniquement Home accessible
+ * false = toutes les pages accessibles
+ */
+const PUBLIC_MODE = true;
+
+// Layout principal
 const MainLayout = ({ children }) => (
   <div
     className="min-h-screen flex flex-col"
@@ -53,44 +59,60 @@ function App() {
   return (
     <ThemeProvider>
       <Router>
-        <Routes>
 
-          {/* Auth */}
-          <Route path="/connexion" element={
-            <AuthLayout><LoginPage /></AuthLayout>
-          } />
+        {/*  MODE PUBLIC : HOME ONLY */}
+        {PUBLIC_MODE ? (
+          <Routes>
+            <Route path="/" element={
+              <MainLayout>
+                <HomePage />
+              </MainLayout>
+            } />
 
-          <Route path="/inscription" element={
-            <AuthLayout><SignupPage /></AuthLayout>
-          } />
+            {/* redirection de tout le reste vers Home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        ) : (
+          /*  MODE FULL APP (DEV / FUTUR PROD) */
+          <Routes>
 
-          {/* Chat en pleine page (sans Header/Footer) */}
-          <Route path="/chat/:claimId" element={<ChatPage />} />
+            {/* Auth */}
+            <Route path="/connexion" element={
+              <AuthLayout><LoginPage /></AuthLayout>
+            } />
 
-          {/* Admin */}
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/inscription" element={
+              <AuthLayout><SignupPage /></AuthLayout>
+            } />
 
-          {/* App principale */}
-          <Route path="/*" element={
-            <MainLayout>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="discussions" element={<DiscussionPage />} /> 
-                 {/*<Route path="/event/:eventId" element={<DiscussionPage />} />*/}
-                <Route path="/live" element={<LivePage />} />
-                <Route path="/insights" element={<InsightsPage />} />
-                <Route path="/how-it-works" element={<HowItWorksPage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/event/:id" element={<EventPage />} />
-                <Route path="/ai-analysis/:id" element={<AIAnalysisPage />} />
-                <Route path="/submit/claim" element={<SubmitClaimPage />} />
-                <Route path="/submit" element={<SubmitPage />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
-              </Routes>
-            </MainLayout>
-          } />
+            {/* Chat */}
+            <Route path="/chat/:claimId" element={<ChatPage />} />
 
-        </Routes>
+            {/* Admin */}
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
+            {/* App principale */}
+            <Route path="/*" element={
+              <MainLayout>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/discussions" element={<DiscussionPage />} />
+                  <Route path="/live" element={<LivePage />} />
+                  <Route path="/insights" element={<InsightsPage />} />
+                  <Route path="/how-it-works" element={<HowItWorksPage />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/event/:id" element={<EventPage />} />
+                  <Route path="/ai-analysis/:id" element={<AIAnalysisPage />} />
+                  <Route path="/submit/claim" element={<SubmitClaimPage />} />
+                  <Route path="/submit" element={<SubmitPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                </Routes>
+              </MainLayout>
+            } />
+
+          </Routes>
+        )}
+
       </Router>
     </ThemeProvider>
   );
