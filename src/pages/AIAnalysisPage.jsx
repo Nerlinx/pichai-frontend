@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// PichAI — AIAnalysisPage.jsx (version corrigée)
+// PichAI — AIAnalysisPage.jsx (version finale formatée)
 // ═══════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useCallback } from 'react';
@@ -18,6 +18,7 @@ import {
   ExclamationTriangleIcon,
   ChatBubbleLeftRightIcon,
   UsersIcon,
+  ShieldCheckIcon,
   LightBulbIcon,
   DocumentTextIcon,
   ChartBarIcon,
@@ -53,28 +54,19 @@ const VERDICTS = {
   insufficient:{ color: '#64748B', bg: 'rgba(100,116,139,0.08)', icon: '❓', label: 'Insuffisant' },
 };
 
-// ─── FORMATTEUR DE RÉPONSE IA (robuste) ──────────────────────────
+// ─── FORMATTEUR DE RÉPONSE IA ────────────────────────────────────
 function parseAIAnalysis(raw) {
   if (!raw) return null;
-
-  // Si c'est déjà un objet structuré
+  
+  // Si raw est déjà un objet bien structuré
   if (typeof raw === 'object' && !Array.isArray(raw)) {
+    // Si raw.analysis existe, on le prend
     const inner = raw.analysis || raw;
-
-    // Essayer d'obtenir un verdict textuel
+    
+    // Déterminer le verdict
     const verdictKey = inner.verdict || inner.verdict_label || '';
     const vConfig = VERDICTS[verdictKey] || VERDICTS['Insuffisant'];
-
-    // Aplatir les champs pour garantir des chaînes
-    const analyseText =
-      typeof inner.analyse === 'string'
-        ? inner.analyse
-        : typeof inner.summary === 'string'
-        ? inner.summary
-        : typeof inner.conclusion === 'string'
-        ? inner.conclusion
-        : JSON.stringify(inner.analyse || inner.summary || inner.conclusion || '', null, 2);
-
+    
     return {
       verdict: vConfig.label,
       verdictIcon: vConfig.icon,
@@ -83,34 +75,35 @@ function parseAIAnalysis(raw) {
       score: inner.score || inner.confidence || 0,
       coherence: inner.coherence || inner.coherence_score || 0,
       sourceCredibility: inner.source_credibility || inner.source_credibility_score || 0,
-      analyse: analyseText,
-      points_forts: Array.isArray(inner.points_forts) ? inner.points_forts : inner.strengths || [],
-      points_faibles: Array.isArray(inner.points_faibles) ? inner.points_faibles : inner.weaknesses || [],
-      key_signals: Array.isArray(inner.key_signals) ? inner.key_signals : inner.signals || [],
+      analyse: inner.analyse || inner.summary || inner.conclusion || '',
+      points_forts: inner.points_forts || inner.strengths || [],
+      points_faibles: inner.points_faibles || inner.weaknesses || [],
+      key_signals: inner.key_signals || inner.signals || [],
       enriched_by_citizens: inner.enriched_by_citizens || false,
     };
   }
-
+  
   // Si c'est une chaîne JSON
   if (typeof raw === 'string') {
     try {
       const parsed = JSON.parse(raw);
       return parseAIAnalysis(parsed);
     } catch {
-      // Texte brut -> extraction basique
+      // C'est du texte brut : on essaye d'extraire les infos structurées
       return extractFromText(raw);
     }
   }
-
+  
   return null;
 }
 
 function extractFromText(text) {
+  // Essayer d'extraire un verdict connu
   let verdict = 'Insuffisant';
   let verdictIcon = '❓';
   let verdictColor = '#64748B';
   let verdictBg = 'rgba(100,116,139,0.08)';
-
+  
   const lowerText = text.toLowerCase();
   if (lowerText.includes('crédible') || lowerText.includes('credible')) {
     verdict = 'Crédible'; verdictIcon = '✅'; verdictColor = C.green; verdictBg = 'rgba(15,123,78,0.08)';
@@ -119,10 +112,11 @@ function extractFromText(text) {
   } else if (lowerText.includes('douteux') || lowerText.includes('doubtful')) {
     verdict = 'Douteux'; verdictIcon = '❌'; verdictColor = C.red; verdictBg = 'rgba(211,47,47,0.08)';
   }
-
+  
+  // Extraire un score (nombre suivi de % ou /100)
   const scoreMatch = text.match(/(\d+)\s*[%\/]\s*(?:100)?/);
   const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
-
+  
   return {
     verdict,
     verdictIcon,
@@ -139,43 +133,30 @@ function extractFromText(text) {
   };
 }
 
-// ─── AFFICHAGE MARKDOWN AMÉLIORÉ (plus de JSON brut) ─────────────
+// ─── AFFICHAGE MARKDOWN SIMPLE (sauts de ligne, listes) ─────────
 function FormattedText({ text }) {
   if (!text) return null;
-
-  // Fonction interne pour normaliser n'importe quelle valeur en chaîne lisible
-  const normalizeContent = (input) => {
-    if (typeof input === 'string') {
-      // Essayer de parser si c'est du JSON
-      try {
-        const obj = JSON.parse(input);
-        return normalizeContent(obj); // récursif
-      } catch {
-        return input; // texte brut
-      }
-    }
-    if (typeof input === 'object' && input !== null) {
-      // Priorité aux champs textuels connus
-      if (input.analyse) return normalizeContent(input.analyse);
-      if (input.analysis?.analyse) return normalizeContent(input.analysis.analyse);
-      if (input.summary) return normalizeContent(input.summary);
-      if (input.conclusion) return normalizeContent(input.conclusion);
-      // Sinon, jolie représentation JSON pour debug (mais normalement pas utilisé)
-      return JSON.stringify(input, null, 2);
-    }
-    return String(input);
-  };
-
-  const content = normalizeContent(text);
-
-  // Remplacer les marqueurs markdown basiques
+  
+  // Détecter si c'est du JSON
+  let content = text;
+  try {
+    const parsed = JSON.parse(text);
+    content = JSON.stringify(parsed, null, 2);
+    // Si c'est un objet avec analyse, on prend ce champ
+    if (parsed.analyse) content = parsed.analyse;
+    if (parsed.analysis?.analyse) content = parsed.analysis.analyse;
+  } catch {
+    // Ce n'est pas du JSON, on garde le texte brut
+  }
+  
+  // Remplacer les **gras** et *italique*
   const formatted = content
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/### (.*)/g, '<h4 style="font-size:15px;font-weight:700;margin:12px 0 6px;color:var(--hdr-text)">$1</h4>')
     .replace(/## (.*)/g, '<h3 style="font-size:16px;font-weight:700;margin:14px 0 8px;color:var(--hdr-text)">$1</h3>')
     .replace(/\n/g, '<br/>');
-
+  
   return (
     <div
       style={{
@@ -379,7 +360,6 @@ function WebResults({ claimSlug }) {
 
   return (
     <div style={{ background: 'transparent', fontFamily: 'Inter, sans-serif' }}>
-      {/* ... contenu inchangé ... */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${borderColor}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <NewspaperIcon style={{ width: 20, height: 20, color: mutedColor }} />
@@ -502,7 +482,7 @@ function WebResults({ claimSlug }) {
   );
 }
 
-// ─── ANALYSE IA (améliorée – plus de JSON brut) ──────────────────
+// ─── ANALYSE IA (formatée intelligemment) ─────────────────────────
 function AIAnalysisPanel({ claimSlug }) {
   const { t } = useTranslation();
   const [result, setResult] = useState(null);
@@ -519,14 +499,12 @@ function AIAnalysisPanel({ claimSlug }) {
       });
       if (!res.ok) throw new Error('Erreur analyse');
       const data = await res.json();
-      // Toujours formater la réponse avant de l’afficher
+      // Formater la réponse AVANT de l'afficher
       const formatted = parseAIAnalysis(data);
       setResult(formatted);
     } catch {
       setError(t('analysis.ai_error'));
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const textColor = 'var(--hdr-text, #0F172A)';
@@ -606,7 +584,7 @@ function AIAnalysisPanel({ claimSlug }) {
             )}
           </div>
 
-          {/* Analyse détaillée (maintenant propre) */}
+          {/* Analyse détaillée (texte formaté) */}
           {result.analyse && (
             <div style={{
               backgroundColor: surfaceBg,
@@ -616,6 +594,7 @@ function AIAnalysisPanel({ claimSlug }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <DocumentTextIcon style={{ width: 18, height: 18, color: mutedColor }} />
                 <h3 style={{ fontSize: 15, fontWeight: 600, color: textColor, margin: 0 }}>
+                 { /* {t('analysis.detailed_analysis')} */}
                   Analyse approfondie
                 </h3>
               </div>
@@ -826,7 +805,10 @@ export default function AIAnalysisPage() {
           <button onClick={() => navigate(`/chat/${slug}`, { state: { claimTitle: claim?.title } })}
             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 16px', borderRadius: 40, border: 'none', backgroundColor: 'transparent', color: mutedColor, fontSize: 14, fontFamily: 'Inter, sans-serif', cursor: 'pointer', flexShrink: 0 }}>
             <SparklesIcon style={{ width: 16 }} />
-            <span className="tab-label-full">PichAI Chat</span>
+            <span className="tab-label-full">
+            {/*{t('analysis.tab_chat')} */}
+            PichAI Chat
+            </span>
             <span className="tab-label-short" style={{ display: 'none' }}>Chat</span>
           </button>
         </div>
