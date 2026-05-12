@@ -1,10 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
 // PICH AI — HomePage.jsx (Final · Production Ready)
-// Hero Carousel (fluide) · Live Stats · Horizontal Filter Rail
+// Hero Carousel · Live Stats · Horizontal Filter Rail
 // "Urgent Claims" · "What's Happening Now" · How It Works · AI Insights
-// Dark/Light Ready · Mobile Responsive · Mock Comments
-// Cartes de même hauteur · Traduction des catégories en temps réel
-// Filtres : flèches de navigation uniquement sur desktop
+// Barres Confiance / Réserve · Effet shimmer · Discussions style Perplexity/X
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -22,7 +20,7 @@ import {
   ChatBubbleLeftRightIcon, ChatBubbleOvalLeftEllipsisIcon,
   SparklesIcon, ClockIcon, GlobeAltIcon,
 } from '@heroicons/react/24/outline';
-import { useEvents, useDashboard } from '../hooks/useApi';
+import { useEvents } from '../hooks/useApi';
 import {
   getMockMode,
   fetchHappening,
@@ -30,7 +28,15 @@ import {
   toggleMockData,
   isMockMode as isMockModeApi,
   categoriesAPI,
+  discussionsAPI,
+  eventsAPI,
 } from '../services/api';
+
+// ─── COULEURS CONFIGURABLES POUR LES BARRES ─────────────────────
+const BAR_COLORS = {
+  confiance: '#2563EB',   // bleu
+  reserve:   '#0F1419',   // noir
+};
 
 // ─── FIXED SEMANTIC COLORS ──────────────────────────────────────
 const SEMANTIC = {
@@ -62,19 +68,10 @@ const ConstellationPattern = ({ accent }) => (
         <stop offset="100%" stopColor={accent} stopOpacity="0" />
       </radialGradient>
     </defs>
-    {[
-      [150, 80, 380, 180], [380, 180, 620, 100], [620, 100, 860, 240],
-      [860, 240, 1080, 140], [380, 180, 520, 340], [620, 100, 720, 290],
-      [860, 240, 940, 400], [150, 80, 280, 260], [280, 260, 520, 340],
-      [720, 290, 940, 400], [280, 260, 150, 80], [520, 340, 720, 290],
-      [940, 400, 1080, 140], [150, 80, 50, 200], [1080, 140, 1150, 300]
-    ].map(([x1, y1, x2, y2], i) => (
+    {[ [150, 80, 380, 180], [380, 180, 620, 100], [620, 100, 860, 240], [860, 240, 1080, 140], [380, 180, 520, 340], [620, 100, 720, 290], [860, 240, 940, 400], [150, 80, 280, 260], [280, 260, 520, 340], [720, 290, 940, 400], [280, 260, 150, 80], [520, 340, 720, 290], [940, 400, 1080, 140], [150, 80, 50, 200], [1080, 140, 1150, 300] ].map(([x1, y1, x2, y2], i) => (
       <line key={`line-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke={accent} strokeWidth="0.8" opacity="0.3" />
     ))}
-    {[
-      [150, 80], [380, 180], [620, 100], [860, 240], [1080, 140],
-      [280, 260], [520, 340], [720, 290], [940, 400], [50, 200], [1150, 300]
-    ].map(([x, y], i) => (
+    {[ [150, 80], [380, 180], [620, 100], [860, 240], [1080, 140], [280, 260], [520, 340], [720, 290], [940, 400], [50, 200], [1150, 300] ].map(([x, y], i) => (
       <g key={`point-${i}`}>
         <circle cx={x} cy={y} r="3" fill={accent} opacity="0.7" />
         <circle cx={x} cy={y} r="8" fill="url(#glow)" opacity="0.5" />
@@ -238,10 +235,10 @@ const HeroCarousel = ({ stats, searchQuery, setSearchQuery }) => {
 // ── STATS STRIP ──────────────────────────────────────────────────
 const StatsStrip = ({ stats }) => {
   const { t } = useTranslation();
-  const votesThisMonth = 1247;
-  const aiPrecision = 94.2;
+  const votesThisMonth = stats.votes_this_month ?? 0;
+  const aiPrecision    = stats.ai_precision     ?? 0;
   return (
-    <div style={{ backgrounds: 'var(--hdr-surface)', borderBottom: `1px solid var(--hdr-border)` }}>
+    <div style={{ background: 'var(--hdr-surface)', borderBottom: `1px solid var(--hdr-border)` }}>
       <div className="content-container" style={{ padding: '12px 0' }}>
         <div style={{ fontSize: 11, color: 'var(--hdr-text-muted)', fontFamily: "'Inter',monospace", letterSpacing: '.06em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
           <GlobeAltIcon style={{ width: 14, height: 14 }} />
@@ -254,7 +251,7 @@ const StatsStrip = ({ stats }) => {
             { labelKey: 'stats.avg_consensus', value: stats.averageConsensus ?? 0, color: 'var(--hdr-text-sub)', icon: <ChartBarIcon style={{ width: 16, height: 16 }} />, suffix: '%' },
             { labelKey: 'stats.urgent', value: stats.urgentCount ?? 0, color: SEMANTIC.red, icon: <BoltIcon style={{ width: 16, height: 16 }} /> },
             { labelKey: 'stats.votes_this_month', value: votesThisMonth, color: SEMANTIC.amber, icon: <CheckCircleIcon style={{ width: 16, height: 16 }} /> },
-            { labelKey: 'stats.ai_precision', value: aiPrecision, color: SEMANTIC.green, icon: <CpuChipIcon style={{ width: 16, height: 16 }} />, suffix: '%' },
+            // { labelKey: 'stats.ai_precision', value: aiPrecision, color: SEMANTIC.green, icon: <CpuChipIcon style={{ width: 16, height: 16 }} />, suffix: '%' },
           ].map((s) => (
             <div key={s.labelKey} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 20px', flex: '1 1 140px' }}>
               <span style={{ color: s.color }}>{s.icon}</span>
@@ -296,109 +293,220 @@ const gci = (n) => {
   return m[n] || <FireIcon className="w-3 h-3" />;
 };
 
-// ── MOCK COMMENTS ───────────────────────────────────────────────
-const getMockComments = (eventId) => {
-  const commentPool = [
-    { id: 1, user: 'T. Patrick', text: "On veut du concret sur le terrain, on en a assez des discours théoriques !", text_ht: "Nou bezwen pratik sou teren an, diskou teyorik yo ase kounye a !", time: '45m', avatar: 'TP', verified: false },
-    { id: 2, user: 'Ricardo_IT', text: "L'intelligence artificielle peut vraiment changer la donne ici.", text_ht: "Entèlijans atifisyèl ka chanje jan bagay yo fèt tout bon isit la.", time: '1h', avatar: 'RI', verified: false },
-    { id: 3, user: 'Jean-Louis D.', text: "Si la route est débloquée, l'économie va respirer un peu.", text_ht: "Si wout la debloke, ekonomi an pral pran yon ti souf.", time: '3h', avatar: 'JD', verified: true },
-    { id: 4, user: 'Sophia Charles', text: "On attend de voir l'impact réel sur le prix du riz au marché.", text_ht: "N ap tann pou n wè si sa ap vrèman desann pri diri a nan mache yo.", time: '4h', avatar: 'SC', verified: false },
-    { id: 5, user: 'Steeve_Okap', text: "Les chiffres de la BRH sont encourageants mais encore insuffisants.", text_ht: "Chif BRH yo bay espwa men yo pa ase kounye a.", time: '5h', avatar: 'SO', verified: false },
-    { id: 6, user: 'Vanessa_Eco', text: "Sans une vraie stabilité politique, ces prédictions restent très fragiles.", text_ht: "San yon estabilite politik tout bon, prediksyon sa yo ap rete frajil anpil.", time: '1j', avatar: 'VE', verified: true },
-    { id: 7, user: 'Wideline J.', text: "C'est le moment d'investir dans la production locale pour sauver la gourde.", text_ht: "Se kounye a pou n envesti nan sa n ap pwodui lakay pou n sove goud la.", time: '10m', avatar: 'WJ', verified: true }
-  ];
-  const count = (eventId % 3) + 2;
-  return commentPool.slice(0, count).map(c => ({ ...c, id: `${eventId}-${c.id}` }));
+// ═══════════════════════════════════════════════════════════════
+// ── HOOK : commentaires ───────────
+// ═══════════════════════════════════════════════════════════════
+const commentsCache = {};
+
+const useClaimComments = (claimId, { limit = 3 } = {}) => {
+  const [comments, setComments]   = useState(commentsCache[claimId] || []);
+  const [total, setTotal]         = useState(0);
+  const [loading, setLoading]     = useState(!commentsCache[claimId]);
+
+  useEffect(() => {
+    if (!claimId) return;
+    if (commentsCache[claimId]) {
+      setComments(commentsCache[claimId]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    discussionsAPI.getComments(claimId, { sort: 'weight', limit })
+      .then(res => {
+        if (cancelled) return;
+        const data = res?.data || {};
+        const list = data.comments || [];
+        commentsCache[claimId] = list;
+        setComments(list);
+        setTotal(data.total || 0);
+      })
+      .catch(() => {
+        if (!cancelled) setComments([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [claimId, limit]);
+
+  return { comments, total, loading };
 };
 
-// ── EVENT CARD ───────────────────────────────────────────────────
-const EventCard = ({ event, userVote, onVote, onDetails, onAnalysis, onDiscussion }) => {
-  const { t } = useTranslation();
-  const getCategoryName = (cat) => {
-    if (!cat) return 'general';
-    if (typeof cat === 'string') return cat;
-    if (typeof cat === 'object') return cat.name || 'general';
-    return 'general';
-  };
+// ─── HELPER : avatar initiales depuis user_display ────────────────
+const getInitials = (userDisplay) => {
+  if (!userDisplay) return '?';
+  const parts = userDisplay.trim().split(/\s+/);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return parts[0].slice(0, 2).toUpperCase();
+};
 
-  const categoryName = getCategoryName(event.category);
-  const pal = gcp(categoryName);
-  const isVoted = userVote !== undefined && userVote !== null;
-  const totalVotes = event.participants ?? 0;
-  const consensusPercent = event.currentConsensus;
-  const hasValidConsensus = totalVotes > 0 && consensusPercent !== null && typeof consensusPercent === 'number' && !isNaN(consensusPercent);
-  
-  const mockComments = getMockComments(event.id);
-  const handleTitleClick = () => onDetails(event.id);
-  const handleDiscussionClick = () => onDiscussion(event.id);
-  const votesDisplay = totalVotes >= 1000 ? `${(totalVotes/1000).toFixed(1)}k` : totalVotes;
+// ─── HELPER : "il y a X temps" depuis ISO date ────────────────────
+const timeAgo = (isoDate) => {
+  if (!isoDate) return '';
+  const diff = (Date.now() - new Date(isoDate)) / 1000;
+  if (diff < 60)   return `${Math.floor(diff)}s`;
+  if (diff < 3600) return `${Math.floor(diff/60)}min`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h`;
+  return `${Math.floor(diff/86400)}j`;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ── EVENT CARD  ────────────────────────
+// ═══════════════════════════════════════════════════════════════
+const EventCard = ({ event, userVote, onVote, onDetails, onAnalysis, onDiscussion }) => {
+  const { t, i18n } = useTranslation();
+  const categoryName    = typeof event.category === 'object' ? (event.category?.name || 'general') : (event.category || 'general');
+  const pal             = gcp(categoryName);
+  const isVoted         = userVote !== undefined && userVote !== null;
+  const totalVotes      = event.participants ?? 0;
+  const confiancePercent = event.probablePercent ?? 0;   // renommé
+  const reservePercent   = event.improbablePercent ?? 0;
+  const votesDisplay    = totalVotes >= 1000 ? `${(totalVotes/1000).toFixed(1)}k` : totalVotes;
+
+  const { comments, total: totalComments, loading: commentsLoading } = useClaimComments(event.id, { limit: 3 });
 
   return (
     <article className="event-card">
       <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+
+        
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', background: pal.bg, color: pal.text, border: `1px solid ${pal.border}` }}>
-            {gci(event.category)} {event.category}
+            {gci(categoryName)} {categoryName}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {event.status === 'urgent' && <span style={{ fontSize: 9, fontWeight: 700, color: SEMANTIC.red, display: 'flex', alignItems: 'center', gap: 2 }}><BoltIcon style={{ width: 10, height: 10 }} />{t('event.urgent')}</span>}
-            {event.trend === 'up' && <ArrowTrendingUpIcon style={{ width: 14, height: 14, color: SEMANTIC.green }} />}
+            {event.trend === 'up'   && <ArrowTrendingUpIcon   style={{ width: 14, height: 14, color: SEMANTIC.green }} />}
             {event.trend === 'down' && <ArrowTrendingDownIcon style={{ width: 14, height: 14, color: SEMANTIC.red }} />}
           </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-          <h3 onClick={handleTitleClick} style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.4, color: 'var(--hdr-text)', margin: 0, letterSpacing: '-.01em', cursor: 'pointer', flex: '1 1 auto' }}>{event.title}</h3>
-          {hasValidConsensus ? (
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              <span style={{ fontSize: 22, fontWeight: 800, color: consensusPercent >= 50 ? SEMANTIC.green : SEMANTIC.red, lineHeight: 1, letterSpacing: '-.02em' }}>{consensusPercent}%</span>
-              <span style={{ fontSize: 11, color: 'var(--hdr-text-muted)', whiteSpace: 'nowrap' }}>· {votesDisplay} {totalVotes === 1 ? t('event.vote_singular') : t('event.vote_plural')}</span>
+          <h3 onClick={() => onDetails(event.slug)} style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.4, color: 'var(--hdr-text)', margin: 0, letterSpacing: '-.01em', cursor: 'pointer', flex: '1 1 auto' }}>{event.title}</h3>
+          {totalVotes > 0 ? (
+            <div style={{ width: '100%' }}>
+ 
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: BAR_COLORS.confiance, fontWeight: 600, minWidth: 72 }}>
+                  {t('event.confiance')}
+                </span>
+                <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#E5E7EB', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 3,
+                    width: `${confiancePercent}%`,
+                    background: BAR_COLORS.confiance,
+                    transition: 'width 0.5s ease',
+                  }} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: BAR_COLORS.confiance, minWidth: 34, textAlign: 'right' }}>
+                  {confiancePercent}%
+                </span>
+              </div>
+
+            
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 11, color: BAR_COLORS.reserve, fontWeight: 600, minWidth: 72 }}>
+                  {t('event.reserve')}
+                </span>
+                <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#E5E7EB', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 3,
+                    width: `${reservePercent}%`,
+                    background: BAR_COLORS.reserve,
+                    transition: 'width 0.5s ease',
+                  }} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: BAR_COLORS.reserve, minWidth: 34, textAlign: 'right' }}>
+                  {reservePercent}%
+                </span>
+              </div>
+
+              
+              <span style={{ fontSize: 10, color: 'var(--hdr-text-muted)' }}>
+                {totalVotes.toLocaleString()} participant{totalVotes > 1 ? 's' : ''}
+              </span>
             </div>
           ) : (
-            <span style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--hdr-text-muted)', whiteSpace: 'nowrap' }}>{t('event.no_votes_yet')}</span>
+            <span style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--hdr-text-muted)' }}>
+              {t('event.no_votes_yet')}
+            </span>
           )}
         </div>
 
-        <p onClick={handleTitleClick} style={{ fontSize: 13, color: 'var(--hdr-text-sub)', lineHeight: 1.5, margin: '0 0 16px', cursor: 'pointer' }}>{event.description}</p>
+        <p onClick={() => onDetails(event.slug)} style={{ fontSize: 13, color: 'var(--hdr-text-sub)', lineHeight: 1.5, margin: '0 0 16px', cursor: 'pointer' }}>{event.description}</p>
 
+        
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-          <button onClick={() => onVote(event.id, 'yes')} disabled={isVoted} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 4px', borderRadius: 8, border: userVote === 'yes' ? `1.5px solid ${SEMANTIC.greenBorder}` : `1px solid var(--hdr-border)`, background: userVote === 'yes' ? SEMANTIC.greenSoft : 'var(--hdr-surface)', color: userVote === 'yes' ? SEMANTIC.green : 'var(--hdr-text-sub)', fontSize: 12, fontWeight: 600, cursor: isVoted ? 'default' : 'pointer', opacity: isVoted && userVote !== 'yes' ? 0.5 : 1, transition: 'all .15s' }}>
-            <CheckCircleIcon style={{ width: 14, height: 14 }} />{t('event.probable')}
+          <button onClick={() => onVote(event.id, 'yes')} disabled={isVoted} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 4px', borderRadius: 8, border: userVote === 'yes' ? `1.5px solid ${BAR_COLORS.confiance}` : `1px solid var(--hdr-border)`, background: userVote === 'yes' ? `${BAR_COLORS.confiance}10` : 'var(--hdr-surface)', color: userVote === 'yes' ? BAR_COLORS.confiance : 'var(--hdr-text-sub)', fontSize: 12, fontWeight: 600, cursor: isVoted ? 'default' : 'pointer', opacity: isVoted && userVote !== 'yes' ? 0.5 : 1, transition: 'all .15s' }}>
+             {t('event.confiance')}
           </button>
-          <button onClick={() => onVote(event.id, 'no')} disabled={isVoted} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 4px', borderRadius: 8, border: userVote === 'no' ? `1.5px solid ${SEMANTIC.redBorder}` : `1px solid var(--hdr-border)`, background: userVote === 'no' ? SEMANTIC.redSoft : 'var(--hdr-surface)', color: userVote === 'no' ? SEMANTIC.red : 'var(--hdr-text-sub)', fontSize: 12, fontWeight: 600, cursor: isVoted ? 'default' : 'pointer', opacity: isVoted && userVote !== 'no' ? 0.5 : 1, transition: 'all .15s' }}>
-            <XCircleIcon style={{ width: 14, height: 14 }} />{t('event.improbable')}
+          <button onClick={() => onVote(event.id, 'no')} disabled={isVoted} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 4px', borderRadius: 8, border: userVote === 'no' ? `1.5px solid ${BAR_COLORS.reserve}` : `1px solid var(--hdr-border)`, background: userVote === 'no' ? `${BAR_COLORS.reserve}10` : 'var(--hdr-surface)', color: userVote === 'no' ? BAR_COLORS.reserve : 'var(--hdr-text-sub)', fontSize: 12, fontWeight: 600, cursor: isVoted ? 'default' : 'pointer', opacity: isVoted && userVote !== 'no' ? 0.5 : 1, transition: 'all .15s' }}>
+            {t('event.reserve')}
           </button>
         </div>
 
+        {/* Boutons analyse + discussion */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
           <button onClick={() => onAnalysis(event.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 4px', borderRadius: 8, border: `1px solid var(--hdr-border)`, background: 'var(--hdr-surface-alt)', color: 'var(--hdr-text-sub)', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}>
             <CpuChipIcon style={{ width: 12, height: 12 }} />{t('event.ai_analysis')}
           </button>
-          <button onClick={handleDiscussionClick} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 4px', borderRadius: 8, border: `1px solid var(--hdr-border)`, background: 'var(--hdr-surface-alt)', color: 'var(--hdr-text-sub)', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}>
+          <button onClick={() => onDiscussion(event.slug)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 4px', borderRadius: 8, border: `1px solid var(--hdr-border)`, background: 'var(--hdr-surface-alt)', color: 'var(--hdr-text-sub)', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}>
             <ChatBubbleLeftRightIcon style={{ width: 12, height: 12 }} />
-            {t('event.discussion')} {mockComments.length}
+            {t('event.discussion')}
+            {commentsLoading
+              ? <span style={{ fontSize: 10, opacity: .5 }}>…</span>
+              : <span>{totalComments > 0 ? totalComments : ''}</span>
+            }
           </button>
         </div>
 
+        {/* ── Section commentaires réels ─────────────────────────── */}
         <div style={{ borderTop: `1px solid var(--hdr-border)`, paddingTop: 12 }}>
-          {mockComments.slice(0, 3).map(c => (
+
+          {commentsLoading && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[1,2].map(i => (
+                <div key={i} className="shimmer" style={{ display: 'flex', gap: 8, height: 28, borderRadius: 8 }} />
+              ))}
+            </div>
+          )}
+
+          {/* Commentaires chargés */}
+          {!commentsLoading && comments.length > 0 && comments.slice(0, 3).map(c => (
             <div key={c.id} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#E5E7EB', color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
-                {c.avatar}
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#E5E7EB', color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                {getInitials(c.user_display)}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 3 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--hdr-text)' }}>{c.user}</span>
-                  {c.verified && <CheckCircleIcon style={{ width: 12, height: 12, color: SEMANTIC.green }} />}
-                  <span style={{ fontSize: 10, color: 'var(--hdr-text-muted)' }}>{c.time}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--hdr-text)' }}>{c.user_display || t('comments.anonymous')}</span>
+                  {c.comment_type === 'proof' && (
+                    <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: SEMANTIC.greenSoft, color: SEMANTIC.green, fontWeight: 700 }}>✓ {t('comments.proof')}</span>
+                  )}
+                  <span style={{ fontSize: 10, color: 'var(--hdr-text-muted)' }}>{timeAgo(c.created_at)}</span>
+                  {c.department && (
+                    <span style={{ fontSize: 9, color: 'var(--hdr-text-muted)', padding: '1px 5px', borderRadius: 4, background: 'var(--hdr-surface-alt)' }}>{c.department}</span>
+                  )}
                 </div>
-                <p style={{ fontSize: 11, color: 'var(--hdr-text-sub)', margin: 0, lineHeight: 1.4 }}>{c.text}</p>
+                <p style={{ fontSize: 11, color: 'var(--hdr-text-sub)', margin: 0, lineHeight: 1.4 }}>
+                  {i18n.language === 'ht' && c.content_ht ? c.content_ht : c.content}
+                </p>
               </div>
             </div>
           ))}
-          {mockComments.length === 0 && (
-            <button onClick={handleDiscussionClick} style={{ width: '100%', textAlign: 'center', fontSize: 11, color: 'var(--hdr-accent)', background: 'none', border: 'none', padding: 6, cursor: 'pointer' }}>
+
+          {/* Aucun commentaire → CTA */}
+          {!commentsLoading && comments.length === 0 && (
+            <button onClick={() => onDiscussion(event.slug)} style={{ width: '100%', textAlign: 'center', fontSize: 11, color: 'var(--hdr-accent)', background: 'none', border: 'none', padding: 6, cursor: 'pointer' }}>
               + {t('event.start_discussion')}
+            </button>
+          )}
+
+          {/* Voir toute la discussion si > 3 commentaires */}
+          {!commentsLoading && totalComments > 3 && (
+            <button onClick={() => onDiscussion(event.slug)} style={{ marginTop: 4, fontSize: 10, color: 'var(--hdr-text-muted)', background: 'none', border: 'none', padding: '4px 0', cursor: 'pointer', textDecoration: 'underline' }}>
+              {t('comments.view_all', { count: totalComments })}
             </button>
           )}
         </div>
@@ -409,82 +517,95 @@ const EventCard = ({ event, userVote, onVote, onDetails, onAnalysis, onDiscussio
   );
 };
 
-// ─── FILTER RAIL (flèches uniquement sur desktop) ───────────────
+// ─── FILTER RAIL ─────────────────────────────────────────────────
 const STICKY_TOP_OFFSET = 15;
-
 const FilterRail = ({ categories, filter, setFilter, t }) => {
   const scrollRef = useRef(null);
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(true);
+  const [showLeft, setShowLeft]   = useState(false);
+  const [showRight, setShowRight] = useState(true);
   const isDesktop = useRef(window.innerWidth >= 768);
-
   const checkScroll = () => {
-    if (!isDesktop.current) return; // Pas de flèches sur mobile
+    if (!isDesktop.current) return;
     const el = scrollRef.current;
     if (!el) return;
-    setShowLeftArrow(el.scrollLeft > 0);
-    setShowRightArrow(el.scrollLeft < el.scrollWidth - el.clientWidth - 1);
+    setShowLeft(el.scrollLeft > 0);
+    setShowRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 1);
   };
-
   useEffect(() => {
-    const handleResize = () => {
-      isDesktop.current = window.innerWidth >= 768;
-      checkScroll();
-    };
+    const onResize = () => { isDesktop.current = window.innerWidth >= 768; checkScroll(); };
     checkScroll();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
-
-  const scroll = (direction) => {
+  const scroll = (dir) => {
     const el = scrollRef.current;
     if (!el) return;
-    const scrollAmount = el.clientWidth * 0.7;
-    el.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    el.scrollBy({ left: dir === 'left' ? -el.clientWidth * 0.7 : el.clientWidth * 0.7, behavior: 'smooth' });
     setTimeout(checkScroll, 300);
   };
-
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-      {isDesktop.current && showLeftArrow && (
-        <button onClick={() => scroll('left')} className="filter-arrow" style={{ background: 'var(--hdr-surface)', border: '1px solid var(--hdr-border)', borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--hdr-text-sub)', flexShrink: 0 }} aria-label={t('filter.scroll_left')}>
-          <ChevronLeftIcon style={{ width: 16, height: 16 }} />
-        </button>
+      {isDesktop.current && showLeft && (
+        <button onClick={() => scroll('left')} style={{ background: 'var(--hdr-surface)', border: '1px solid var(--hdr-border)', borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--hdr-text-sub)', flexShrink: 0 }}><ChevronLeftIcon style={{ width: 16, height: 16 }} /></button>
       )}
-      <div ref={scrollRef} onScroll={checkScroll} className="filter-rail" style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', scrollSnapType: 'x mandatory', paddingBottom: 4, flex: 1 }} role="tablist" aria-label={t('filter.categories')}>
+      <div ref={scrollRef} onScroll={checkScroll} className="filter-rail" style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', scrollSnapType: 'x mandatory', paddingBottom: 4, flex: 1 }} role="tablist">
         {categories.map(cat => {
-          const pal = gcp(cat.label);
+          const pal    = gcp(cat.label);
           const active = filter === cat.id;
           return (
-            <button key={cat.id} onClick={() => setFilter(cat.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 30, border: active ? `1.5px solid ${pal.bar}` : '1px solid var(--hdr-border)', backgrounds: active ? pal.bg : 'var(--hdr-surface)', color: active ? pal.text : 'var(--hdr-text-sub)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', scrollSnapAlign: 'start', transition: 'all .15s', flexShrink: 0 }} role="tab" aria-selected={active} aria-label={`${cat.label} (${cat.count})`}>
-              {cat.icon}
-              {cat.label}
+            <button key={cat.id} onClick={() => setFilter(cat.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 30, border: active ? `1.5px solid ${pal.bar}` : '1px solid var(--hdr-border)', color: active ? pal.text : 'var(--hdr-text-sub)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', scrollSnapAlign: 'start', transition: 'all .15s', flexShrink: 0 }} role="tab" aria-selected={active}>
+              {cat.icon}{cat.label}
               {cat.count > 0 && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 12, background: active ? 'rgba(0,0,0,.06)' : 'var(--hdr-surface-alt)', color: active ? pal.text : 'var(--hdr-text-muted)' }}>{cat.count}</span>}
             </button>
           );
         })}
       </div>
-      {isDesktop.current && showRightArrow && (
-        <button onClick={() => scroll('right')} className="filter-arrow" style={{ background: 'var(--hdr-surface)', border: '1px solid var(--hdr-border)', borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--hdr-text-sub)', flexShrink: 0 }} aria-label={t('filter.scroll_right')}>
-          <ChevronRightIcon style={{ width: 16, height: 16 }} />
-        </button>
+      {isDesktop.current && showRight && (
+        <button onClick={() => scroll('right')} style={{ background: 'var(--hdr-surface)', border: '1px solid var(--hdr-border)', borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--hdr-text-sub)', flexShrink: 0 }}><ChevronRightIcon style={{ width: 16, height: 16 }} /></button>
       )}
     </div>
   );
 };
 
-// ─── CLAIMS CHAUDS (URGENTS) ─────────────────────────────────────
+const UrgentClaimCard = ({ event, userVote, onVote, onDetails, onDiscussion, t }) => {
+  const totalVotes = event.participants ?? 0;
+  const confiancePercent = event.probablePercent ?? 0;
+  const reservePercent   = event.improbablePercent ?? 0;
+  const { total: totalComments } = useClaimComments(event.id, { limit: 1 });
+
+  return (
+    <div style={{ background: 'var(--hdr-surface)', borderRadius: 12, border: `1px solid var(--hdr-border)`, padding: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: SEMANTIC.red, background: SEMANTIC.redSoft, padding: '2px 8px', borderRadius: 20 }}>Urgent</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+          <span style={{ fontSize: 20, fontWeight: 800, color: confiancePercent >= 50 ? BAR_COLORS.confiance : BAR_COLORS.reserve }}>{confiancePercent}%</span>
+          <span style={{ fontSize: 10, color: 'var(--hdr-text-muted)' }}>· {fmt(totalVotes)}</span>
+        </div>
+      </div>
+      <h4 onClick={() => onDetails(event.slug)} style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px', color: 'var(--hdr-text)', cursor: 'pointer' }}>{event.title}</h4>
+      <p style={{ fontSize: 12, color: 'var(--hdr-text-sub)', margin: '0 0 12px', lineHeight: 1.4 }}>{event.description?.slice(0, 90)}...</p>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <button onClick={() => onVote(event.id, 'yes')} style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid var(--hdr-border)', background: 'var(--hdr-surface)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+          {t('event.confiance')}
+        </button>
+        <button onClick={() => onVote(event.id, 'no')} style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid var(--hdr-border)', background: 'var(--hdr-surface)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+          {t('event.reserve')}
+        </button>
+      </div>
+      <button onClick={() => onDiscussion(event.slug)} style={{ width: '100%', padding: '8px', borderRadius: 6, border: 'none', background: 'var(--hdr-accent-soft, #EFF4FF)', color: 'var(--hdr-accent)', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+        <ChatBubbleLeftRightIcon style={{ width: 12, height: 12 }} /> Discussion {totalComments > 0 ? totalComments : ''}
+      </button>
+    </div>
+  );
+};
+
+// ─── URGENT CLAIMS RAIL ──────────────────────────────────────────
 const UrgentClaimsRail = ({ events, userVotes, onVote, onDetails, onDiscussion, t }) => {
   const [filterUrgent, setFilterUrgent] = useState('all');
   const urgentEvents = events.filter(e => e.status === 'urgent');
-  const filtered = filterUrgent === 'all' ? urgentEvents : urgentEvents.filter(e => {
-    const cat = (e.category || '').toLowerCase();
-    return cat === filterUrgent;
-  });
   const uniqueCategories = [...new Set(urgentEvents.map(e => (e.category || '').toLowerCase()))];
-
+  const filtered = filterUrgent === 'all' ? urgentEvents : urgentEvents.filter(e => (e.category || '').toLowerCase() === filterUrgent);
   if (urgentEvents.length === 0) return null;
-
   return (
     <section style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid var(--hdr-border)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
@@ -501,37 +622,17 @@ const UrgentClaimsRail = ({ events, userVotes, onVote, onDetails, onDiscussion, 
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-        {filtered.slice(0, 4).map(event => {
-          const totalVotes = event.participants ?? 0;
-          const consensusPercent = event.currentConsensus;
-          const hasValidConsensus = totalVotes > 0 && consensusPercent !== null && typeof consensusPercent === 'number' && !isNaN(consensusPercent);
-          const mockCommentsUrgent = getMockComments(event.id).slice(0, 2);
-          const votesDisplay = totalVotes >= 1000 ? `${(totalVotes/1000).toFixed(1)}k` : totalVotes;
-          return (
-            <div key={event.id} style={{ background: 'var(--hdr-surface)', borderRadius: 12, border: `1px solid var(--hdr-border)`, padding: 16, transition: 'all .15s' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: SEMANTIC.red, background: SEMANTIC.redSoft, padding: '2px 8px', borderRadius: 20 }}>Urgent</span>
-                {hasValidConsensus ? (
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                    <span style={{ fontSize: 20, fontWeight: 800, color: consensusPercent >= 50 ? SEMANTIC.green : SEMANTIC.red }}>{consensusPercent}%</span>
-                    <span style={{ fontSize: 10, color: 'var(--hdr-text-muted)' }}>· {votesDisplay}</span>
-                  </div>
-                ) : (
-                  <span style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--hdr-text-muted)' }}>{t('event.no_votes_yet')}</span>
-                )}
-              </div>
-              <h4 onClick={() => onDetails(event.id)} style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px', color: 'var(--hdr-text)', cursor: 'pointer' }}>{event.title}</h4>
-              <p style={{ fontSize: 12, color: 'var(--hdr-text-sub)', margin: '0 0 12px', lineHeight: 1.4 }}>{event.description?.slice(0, 90)}...</p>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <button onClick={() => onVote(event.id, 'yes')} style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid var(--hdr-border)', background: 'var(--hdr-surface)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}><CheckCircleIcon style={{ width: 12, height: 12, display: 'inline', marginRight: 4 }} />Probable</button>
-                <button onClick={() => onVote(event.id, 'no')} style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid var(--hdr-border)', background: 'var(--hdr-surface)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}><XCircleIcon style={{ width: 12, height: 12, display: 'inline', marginRight: 4 }} />Improbable</button>
-              </div>
-              <button onClick={() => onDiscussion(event.id)} style={{ width: '100%', padding: '8px', borderRadius: 6, border: 'none', background: 'var(--hdr-accent-soft, #EFF4FF)', color: 'var(--hdr-accent)', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                <ChatBubbleLeftRightIcon style={{ width: 12, height: 12 }} /> Discussion {mockCommentsUrgent.length}
-              </button>
-            </div>
-          );
-        })}
+        {filtered.slice(0, 4).map(event => (
+          <UrgentClaimCard
+            key={event.id}
+            event={event}
+            userVote={userVotes[event.id]}
+            onVote={onVote}
+            onDetails={onDetails}
+            onDiscussion={onDiscussion}
+            t={t}
+          />
+        ))}
       </div>
     </section>
   );
@@ -578,7 +679,9 @@ const HappeningNowRail = ({ happeningItems, loading, navigate }) => {
         <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--hdr-text)', margin: 0 }}>{t('happening.title')}</h2>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: SEMANTIC.green, boxShadow: `0 0 6px ${SEMANTIC.green}` }} />
       </div>
-      <SkeletonRail />
+      <div style={{ display: 'flex', gap: 12, overflow: 'hidden' }}>
+        {[1,2,3].map(i => <div key={i} className="shimmer" style={{ minWidth: 240, height: 100, borderRadius: 12 }} />)}
+      </div>
     </section>
   );
   if (!happeningItems || happeningItems.length === 0) return null;
@@ -597,14 +700,14 @@ const HappeningNowRail = ({ happeningItems, loading, navigate }) => {
         )}
         <div ref={scrollRef} onScroll={checkScroll} className="horizontal-rail" style={{ display: 'flex', gap: 12, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', scrollSnapType: 'x mandatory', paddingBottom: 8, flex: 1 }} aria-label={t('happening.rail_label')}>
           {happeningItems.map(item => (
-            <div key={item.id} onClick={() => navigate(`/event/${item.id}`)} className="happening-card" style={{ background: 'var(--hdr-surface)', borderRadius: 12, border: '1px solid var(--hdr-border)', padding: '14px 18px', minWidth: 240, maxWidth: 300, flexShrink: 0, scrollSnapAlign: 'start', cursor: 'pointer', transition: 'all .15s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--hdr-accent)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--hdr-border)'} role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') navigate(`/event/${item.id}`); }}>
+            <div key={item.id} onClick={() => navigate(`/event/${item.slug}`)} className="happening-card" style={{ background: 'var(--hdr-surface)', borderRadius: 12, border: '1px solid var(--hdr-border)', padding: '14px 18px', minWidth: 240, maxWidth: 300, flexShrink: 0, scrollSnapAlign: 'start', cursor: 'pointer', transition: 'all .15s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--hdr-accent)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--hdr-border)'} role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') navigate(`/event/${item.slug}`); }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <ClockIcon style={{ width: 12, height: 12, color: 'var(--hdr-text-muted)' }} />
                 <span style={{ fontSize: 10, color: 'var(--hdr-text-muted)' }}>{item.timeAgo || t('common.just_now')}</span>
               </div>
               <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--hdr-text)', margin: '0 0 8px', lineHeight: 1.4 }}>{item.title}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: SEMANTIC.green }}>{item.currentConsensus}% {t('event.probable_short')}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: SEMANTIC.green }}>{item.currentConsensus}% {t('event.confiance')}</span>
                 <span style={{ fontSize: 11, color: 'var(--hdr-text-muted)' }}>{fmt(item.participants)} {t('event.participants_short')}</span>
               </div>
             </div>
@@ -619,19 +722,6 @@ const HappeningNowRail = ({ happeningItems, loading, navigate }) => {
     </section>
   );
 };
-
-// ─── SKELETON RAIL ───────────────────────────────────────────────
-const SkeletonRail = () => (
-  <div style={{ display: 'flex', gap: 12, overflow: 'hidden', paddingBottom: 8 }}>
-    {[1,2,3].map(i => (
-      <div key={i} style={{ minWidth: 240, maxWidth: 300, background: 'var(--hdr-surface)', borderRadius: 12, border: '1px solid var(--hdr-border)', padding: '14px 18px', flexShrink: 0, animation: 'skeletonPulse 1.5s infinite' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}><div style={{ width: 12, height: 12, background: 'var(--hdr-border)', borderRadius: '50%' }} /><div style={{ width: 40, height: 10, background: 'var(--hdr-border)', borderRadius: 4 }} /></div>
-        <div style={{ height: 20, width: '80%', background: 'var(--hdr-border)', borderRadius: 4, marginBottom: 8 }} />
-        <div style={{ display: 'flex', gap: 8 }}><div style={{ width: 50, height: 16, background: 'var(--hdr-border)', borderRadius: 4 }} /><div style={{ width: 40, height: 12, background: 'var(--hdr-border)', borderRadius: 4 }} /></div>
-      </div>
-    ))}
-  </div>
-);
 
 // ─── HOW IT WORKS ────────────────────────────────────────────────
 const HowItWorks = ({ t, navigate }) => {
@@ -663,7 +753,12 @@ const globalCSS = `
   @keyframes slideUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
   @keyframes progress{from{width:0%}to{width:100%}}
   @keyframes cardIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes skeletonPulse{0%{opacity:.6}50%{opacity:.3}100%{opacity:.6}}
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .shimmer {
+    animation: shimmer 1.5s infinite linear;
+    background: linear-gradient(90deg, var(--hdr-border) 25%, var(--hdr-surface) 37%, var(--hdr-border) 63%);
+    background-size: 200% 100%;
+  }
   *{box-sizing:border-box}
   body{background:var(--hdr-bg)!important; color:var(--hdr-text); font-family:'Inter',sans-serif;}
   .content-container{max-width:1440px; margin:0 auto; padding-left:16px; padding-right:16px;}
@@ -680,7 +775,7 @@ const globalCSS = `
   }
   
   .event-card {
-    backgrounds: var(--hdr-surface);
+    background: var(--hdr-surface);
     border: 1px solid var(--hdr-border);
     border-radius: 12px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -738,27 +833,8 @@ const globalCSS = `
   }
 `;
 
-// ─── SKELETON CARD ───────────────────────────────────────────────
 const SkeletonCard = () => (
-  <div style={{ background: 'var(--hdr-surface)', borderRadius: 12, border: '1px solid var(--hdr-border)', padding: 16, height: '100%', animation: 'skeletonPulse 1.5s infinite' }}>
-    <div style={{ height: 24, width: '30%', background: 'var(--hdr-border)', borderRadius: 6, marginBottom: 12 }} />
-    <div style={{ height: 20, width: '90%', background: 'var(--hdr-border)', borderRadius: 6, marginBottom: 8 }} />
-    <div style={{ height: 20, width: '80%', background: 'var(--hdr-border)', borderRadius: 6, marginBottom: 16 }} />
-    <div style={{ height: 6, background: 'var(--hdr-border)', borderRadius: 3, marginBottom: 12 }} />
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 12 }}>
-      <div style={{ height: 48, background: 'var(--hdr-border)', borderRadius: 6 }} />
-      <div style={{ height: 48, background: 'var(--hdr-border)', borderRadius: 6 }} />
-      <div style={{ height: 48, background: 'var(--hdr-border)', borderRadius: 6 }} />
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
-      <div style={{ height: 40, background: 'var(--hdr-border)', borderRadius: 8 }} />
-      <div style={{ height: 40, background: 'var(--hdr-border)', borderRadius: 8 }} />
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-      <div style={{ height: 40, background: 'var(--hdr-border)', borderRadius: 8 }} />
-      <div style={{ height: 40, background: 'var(--hdr-border)', borderRadius: 8 }} />
-    </div>
-  </div>
+  <div className="shimmer" style={{ borderRadius: 12, border: '1px solid var(--hdr-border)', height: '100%', minHeight: 300 }} />
 );
 
 // ─── MAIN COMPONENT (HomePage) ──────────────────────────────────
@@ -793,7 +869,7 @@ const HomePage = () => {
       const cats = res?.categories || res?.data?.categories || [];
       setCategoryItems(cats);
     } catch (err) {
-      console.error('Erreur chargement catégories:', err);
+      // console.error('Erreur chargement catégories:', err);
       setCategoryItems([]);
     }
   }, []);
@@ -814,7 +890,7 @@ const HomePage = () => {
       const data = await fetchHappening();
       setHappeningItems(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error('Happening fetch error:', e);
+      // console.error('Happening fetch error:', e);
       setHappeningItems([]);
     } finally {
       setHappeningLoading(false);
@@ -827,7 +903,7 @@ const HomePage = () => {
       const data = await fetchInsights();
       setInsightItems(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error('Insights fetch error:', e);
+      // console.error('Insights fetch error:', e);
       setInsightItems([]);
     } finally {
       setInsightLoading(false);
@@ -861,7 +937,11 @@ const HomePage = () => {
     setUserVotes(p => ({ ...p, [eventId]: vote }));
     try {
       const ok = await submitVote(eventId, vote);
-      if (!ok) setUserVotes(p => { const n = { ...p }; delete n[eventId]; return n; });
+      if (!ok) {
+        setUserVotes(p => { const n = { ...p }; delete n[eventId]; return n; });
+      } else {
+        await refreshEvents();
+      }
     } catch {
       setUserVotes(p => { const n = { ...p }; delete n[eventId]; return n; });
     }
@@ -963,9 +1043,9 @@ const HomePage = () => {
                       event={event}
                       userVote={userVotes[event.id]}
                       onVote={handleVote}
-                      onDetails={id => navigate(`/event/${id}`)}
-                      onAnalysis={id => navigate(`/ai-analysis/${id}`)}
-                      onDiscussion={id => navigate(`/discussions/${id}`)}
+                      onDetails={id => navigate(`/event/${event.slug}`)}
+                      onAnalysis={id => navigate(`/ai-analysis/${event.slug}`)}
+                      onDiscussion={id => navigate(`/discussions/${event.slug}`)}
                     />
                   </div>
                 ))}
@@ -995,8 +1075,8 @@ const HomePage = () => {
             events={events}
             userVotes={userVotes}
             onVote={handleVote}
-            onDetails={id => navigate(`/event/${id}`)}
-            onDiscussion={id => navigate(`/discussions/${id}`)}
+            onDetails={claim => navigate(`/event/${claim.slug}`)}
+            onDiscussion={claim => navigate(`/discussions/${claim.slug}`)}
             t={t}
           />
 
@@ -1009,13 +1089,7 @@ const HomePage = () => {
                 <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--hdr-text)', margin: 0 }}>{t('insights.title')}</h2>
               </div>
               <div className="insights-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 12 }}>
-                {[1,2,3].map(i => (
-                  <div key={i} style={{ background: 'var(--hdr-surface)', borderRadius: 10, border: '1px solid var(--hdr-border)', padding: '16px', animation: 'skeletonPulse 1.5s infinite' }}>
-                    <div style={{ height: 20, width: '40%', background: 'var(--hdr-border)', borderRadius: 4, marginBottom: 12 }} />
-                    <div style={{ height: 24, width: '80%', background: 'var(--hdr-border)', borderRadius: 4, marginBottom: 8 }} />
-                    <div style={{ height: 40, width: '100%', background: 'var(--hdr-border)', borderRadius: 4 }} />
-                  </div>
-                ))}
+                {[1,2,3].map(i => <div key={i} className="shimmer" style={{ height: 140, borderRadius: 10 }} />)}
               </div>
             </section>
           ) : insightItems.length > 0 ? (
