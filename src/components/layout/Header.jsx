@@ -914,7 +914,7 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
                   className={`ph-nav-link${isActive('/impact') ? ' is-active' : ''}`}
                   style={{ marginLeft: 8 }}
                 >
-                  <ArrowTrendingUpIcon style={{ width: 14, marginRight: 4 }} />
+                  {/* <ArrowTrendingUpIcon style={{ width: 14, marginRight: 4 }} /> */}
                   {t('dashboard.my_impact')}
                 </Link>
               )}
