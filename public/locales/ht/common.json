@@ -68,7 +68,10 @@
     "no_votes_yet": "patisipe an premye a",
     "start_discussion": "Kòmanse diskite",
     "discussion": "Diskisyon",
-    "participants": "patisipan"
+    "participants": "patisipan",
+    "vote_singular":"patisipan",
+    "confiance": "Konfyans",
+    "reserve": "Rezèv"
   },
   "insights": {
     "title": "ANALIZ IA",
@@ -205,6 +208,12 @@
     "share_your_view": "Pataje pwen de vi w",
     "top_contributions": "Pi gwo kontribisyon yo",
     "external_sources": "Sous ekstèn"
+  },
+  "comments": {
+    "anonymous": "Anonim",
+    "proof": "Prèv",
+    "view_all": "Gade {{count}} kòmantè yo",
+    "view_all_one": "Gade kòmantè a"
   },
   "live": {
     "title": "Sa k ap pase kounye a",

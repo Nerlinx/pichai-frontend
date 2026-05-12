@@ -61,7 +61,7 @@ export const useEvents = (initialFilters = {}) => {
       }
     } catch (err) {
       setError(err.message);
-      console.error('Erreur lors du chargement des événements:', err);
+      // console.error('Erreur lors du chargement des événements:', err);
     } finally {
       setLoading(false);
     }
@@ -143,7 +143,7 @@ export const useEvents = (initialFilters = {}) => {
       
       return true;
     } catch (err) {
-      console.error('Erreur lors du vote:', err);
+      // console.error('Erreur lors du vote:', err);
       return false;
     }
   }, [fetchEvents]);
@@ -157,7 +157,7 @@ export const useEvents = (initialFilters = {}) => {
       }));
       setEvents(transformedEvents);
     } catch (err) {
-      console.error('Erreur lors de la recherche:', err);
+      // console.error('Erreur lors de la recherche:', err);
     }
   }, []);
 
@@ -187,7 +187,7 @@ export const useCategories = () => {
         setCategories(data);
       } catch (err) {
         setError(err.message);
-        console.error('Erreur lors du chargement des catégories:', err);
+        // console.error('Erreur lors du chargement des catégories:', err);
       } finally {
         setLoading(false);
       }
@@ -221,7 +221,7 @@ export const useDashboard = () => {
         });
       } catch (err) {
         setError(err.message);
-        console.error('Erreur lors du chargement du dashboard:', err);
+        // console.error('Erreur lors du chargement du dashboard:', err);
       } finally {
         setLoading(false);
       }

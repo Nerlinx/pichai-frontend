@@ -17,7 +17,7 @@ i18n
       loadPath: '/locales/{{lng}}/{{ns}}.json', // Chemin vers les fichiers de traduction
     },
     // Configuration des namespaces
-    ns: ['common', 'header', 'home', 'footer'], // Namespaces à charger par défaut
+    ns: ['common', 'header', 'home', 'footer', 'discussion', 'dashboard'], // Namespaces à charger par défaut
     defaultNS: 'common', // Namespace par défaut
   });
 

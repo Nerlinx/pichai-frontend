@@ -1,9 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// PichAI — AIAnalysisPage.jsx
-// Design épuré (X/Perplexity) : pas de bordures, boutons noirs/gris,
-// loader noir, police Inter, dates optionnelles.
-// Thème clair/sombre via variables CSS, multilingue (fr/ht).
-// Onglets responsifs, champ de recherche visible, analyse IA stylée.
+// PichAI — AIAnalysisPage.jsx (version finale formatée)
 // ═══════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useCallback } from 'react';
@@ -18,15 +14,18 @@ import {
   XCircleIcon,
   MagnifyingGlassIcon,
   NewspaperIcon,
-  ChevronRightIcon,
   SparklesIcon,
   ExclamationTriangleIcon,
   ChatBubbleLeftRightIcon,
   UsersIcon,
+  ShieldCheckIcon,
+  LightBulbIcon,
+  DocumentTextIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 // ─── Configuration API ───────────────────────────────────────────
-const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.pichai.tech';
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 const getToken = () =>
   localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
@@ -45,11 +44,131 @@ const C = {
 
 // ─── VERDICTS ────────────────────────────────────────────────────
 const VERDICTS = {
-  Crédible:    { color: C.green, bg: 'rgba(15,123,78,0.08)', icon: '✅' },
-  Possible:    { color: C.amber, bg: 'rgba(180,83,9,0.08)', icon: '⚠️' },
-  Douteux:     { color: C.red, bg: 'rgba(211,47,47,0.08)', icon: '❌' },
-  Insuffisant: { color: '#64748B', bg: 'rgba(100,116,139,0.08)', icon: '❓' },
+  Crédible:    { color: C.green, bg: 'rgba(15,123,78,0.08)', icon: '✅', label: 'Crédible' },
+  Possible:    { color: C.amber, bg: 'rgba(180,83,9,0.08)', icon: '⚠️', label: 'Possible' },
+  Douteux:     { color: C.red, bg: 'rgba(211,47,47,0.08)', icon: '❌', label: 'Douteux' },
+  Insuffisant: { color: '#64748B', bg: 'rgba(100,116,139,0.08)', icon: '❓', label: 'Insuffisant' },
+  credible:    { color: C.green, bg: 'rgba(15,123,78,0.08)', icon: '✅', label: 'Crédible' },
+  possible:    { color: C.amber, bg: 'rgba(180,83,9,0.08)', icon: '⚠️', label: 'Possible' },
+  doubtful:    { color: C.red, bg: 'rgba(211,47,47,0.08)', icon: '❌', label: 'Douteux' },
+  insufficient:{ color: '#64748B', bg: 'rgba(100,116,139,0.08)', icon: '❓', label: 'Insuffisant' },
 };
+
+// ─── FORMATTEUR DE RÉPONSE IA ────────────────────────────────────
+function parseAIAnalysis(raw) {
+  if (!raw) return null;
+  
+  // Si raw est déjà un objet bien structuré
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    // Si raw.analysis existe, on le prend
+    const inner = raw.analysis || raw;
+    
+    // Déterminer le verdict
+    const verdictKey = inner.verdict || inner.verdict_label || '';
+    const vConfig = VERDICTS[verdictKey] || VERDICTS['Insuffisant'];
+    
+    return {
+      verdict: vConfig.label,
+      verdictIcon: vConfig.icon,
+      verdictColor: vConfig.color,
+      verdictBg: vConfig.bg,
+      score: inner.score || inner.confidence || 0,
+      coherence: inner.coherence || inner.coherence_score || 0,
+      sourceCredibility: inner.source_credibility || inner.source_credibility_score || 0,
+      analyse: inner.analyse || inner.summary || inner.conclusion || '',
+      points_forts: inner.points_forts || inner.strengths || [],
+      points_faibles: inner.points_faibles || inner.weaknesses || [],
+      key_signals: inner.key_signals || inner.signals || [],
+      enriched_by_citizens: inner.enriched_by_citizens || false,
+    };
+  }
+  
+  // Si c'est une chaîne JSON
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parseAIAnalysis(parsed);
+    } catch {
+      // C'est du texte brut : on essaye d'extraire les infos structurées
+      return extractFromText(raw);
+    }
+  }
+  
+  return null;
+}
+
+function extractFromText(text) {
+  // Essayer d'extraire un verdict connu
+  let verdict = 'Insuffisant';
+  let verdictIcon = '❓';
+  let verdictColor = '#64748B';
+  let verdictBg = 'rgba(100,116,139,0.08)';
+  
+  const lowerText = text.toLowerCase();
+  if (lowerText.includes('crédible') || lowerText.includes('credible')) {
+    verdict = 'Crédible'; verdictIcon = '✅'; verdictColor = C.green; verdictBg = 'rgba(15,123,78,0.08)';
+  } else if (lowerText.includes('possible')) {
+    verdict = 'Possible'; verdictIcon = '⚠️'; verdictColor = C.amber; verdictBg = 'rgba(180,83,9,0.08)';
+  } else if (lowerText.includes('douteux') || lowerText.includes('doubtful')) {
+    verdict = 'Douteux'; verdictIcon = '❌'; verdictColor = C.red; verdictBg = 'rgba(211,47,47,0.08)';
+  }
+  
+  // Extraire un score (nombre suivi de % ou /100)
+  const scoreMatch = text.match(/(\d+)\s*[%\/]\s*(?:100)?/);
+  const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+  
+  return {
+    verdict,
+    verdictIcon,
+    verdictColor,
+    verdictBg,
+    score,
+    coherence: 0,
+    sourceCredibility: 0,
+    analyse: text,
+    points_forts: [],
+    points_faibles: [],
+    key_signals: [],
+    enriched_by_citizens: false,
+  };
+}
+
+// ─── AFFICHAGE MARKDOWN SIMPLE (sauts de ligne, listes) ─────────
+function FormattedText({ text }) {
+  if (!text) return null;
+  
+  // Détecter si c'est du JSON
+  let content = text;
+  try {
+    const parsed = JSON.parse(text);
+    content = JSON.stringify(parsed, null, 2);
+    // Si c'est un objet avec analyse, on prend ce champ
+    if (parsed.analyse) content = parsed.analyse;
+    if (parsed.analysis?.analyse) content = parsed.analysis.analyse;
+  } catch {
+    // Ce n'est pas du JSON, on garde le texte brut
+  }
+  
+  // Remplacer les **gras** et *italique*
+  const formatted = content
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/### (.*)/g, '<h4 style="font-size:15px;font-weight:700;margin:12px 0 6px;color:var(--hdr-text)">$1</h4>')
+    .replace(/## (.*)/g, '<h3 style="font-size:16px;font-weight:700;margin:14px 0 8px;color:var(--hdr-text)">$1</h3>')
+    .replace(/\n/g, '<br/>');
+  
+  return (
+    <div
+      style={{
+        fontSize: 14,
+        lineHeight: 1.7,
+        color: 'var(--hdr-text, #0F172A)',
+        wordBreak: 'break-word',
+      }}
+      dangerouslySetInnerHTML={{ __html: formatted }}
+    />
+  );
+}
 
 // ─── UTILITAIRES ─────────────────────────────────────────────────
 const formatDate = (d) => {
@@ -67,19 +186,36 @@ function useGlobalStyles() {
     const style = document.createElement('style');
     style.id = id;
     style.textContent = `
-      .hide-scrollbar::-webkit-scrollbar { display: none; }
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-      body {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      
+      @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
       }
-      /* Responsive helpers */
+      
+      .shimmer {
+        animation: shimmer 1.8s infinite linear;
+        background: linear-gradient(
+          90deg,
+          var(--hdr-surface, #F1F5F9) 25%,
+          var(--hdr-border, #E2E8F0) 37%,
+          var(--hdr-surface, #F1F5F9) 63%
+        );
+        background-size: 200% 100%;
+        border-radius: 8px;
+      }
+      
+      .hide-scrollbar::-webkit-scrollbar { display: none; }
+
       @media (max-width: 640px) {
         .tab-label-full { display: none !important; }
         .tab-label-short { display: inline !important; }
+        .analysis-two-col { grid-template-columns: 1fr !important; }
       }
       @media (min-width: 641px) {
         .tab-label-full { display: inline !important; }
         .tab-label-short { display: none !important; }
+        .analysis-two-col { grid-template-columns: 1fr 1fr !important; }
       }
     `;
     document.head.appendChild(style);
@@ -88,6 +224,13 @@ function useGlobalStyles() {
       if (el?.parentNode) el.parentNode.removeChild(el);
     };
   }, []);
+}
+
+// ─── COMPOSANT SHIMMER ────────────────────────────────────────
+function ShimmerBlock({ width = '100%', height = 16, borderRadius = 8, style = {} }) {
+  return (
+    <div className="shimmer" style={{ width, height, borderRadius, ...style }} />
+  );
 }
 
 // ─── SCORE RING ───────────────────────────────────────────────────
@@ -127,7 +270,7 @@ function ScoreRing({ value, color, size = 'default', label, formula }) {
   );
 }
 
-// ─── BOUTON ACTION ───────────────────────────────────────────────
+// ─── BOUTON ACTION (noir/gris) ─────────────────────────────────────
 function ActionButton({ children, onClick, loading, icon, variant = 'primary', style }) {
   const baseStyle = {
     display: 'inline-flex',
@@ -147,9 +290,9 @@ function ActionButton({ children, onClick, loading, icon, variant = 'primary', s
   };
 
   const colors = {
-    primary: { bg: 'var(--hdr-accent, #000)', color: '#fff' },
-    secondary: { bg: 'var(--hdr-surface, #F1F5F9)', color: 'var(--hdr-text, #0F172A)' },
-    ghost: { bg: 'transparent', color: 'var(--hdr-text-muted, #64748B)' },
+    primary:   { bg: 'var(--hdr-text, #0A0A0B)', color: '#FFFFFF' },
+    secondary: { bg: 'var(--hdr-surface, #F1F5F9)', color: 'var(--hdr-text, #0A0A0B)' },
+    ghost:     { bg: 'transparent', color: 'var(--hdr-text-muted, #64748B)' },
   };
 
   const { bg, color } = colors[variant] || colors.primary;
@@ -162,11 +305,12 @@ function ActionButton({ children, onClick, loading, icon, variant = 'primary', s
   );
 }
 
-// ─── ACTUALITÉS ──────────────────────────────────────────────────
-function WebResults({ claimId }) {
+// ─── ACTUALITÉS (inchangé) ────────────────────────────────────────
+function WebResults({ claimSlug }) {
   const { t } = useTranslation();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [sourceFilter, setSourceFilter] = useState('all');
@@ -179,7 +323,7 @@ function WebResults({ claimId }) {
     setDone(false);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/v1/ai/claims/${claimId}/web-search`, {
+      const res = await fetch(`${API_BASE}/api/v1/ai/claims/${claimSlug}/web-search`, {
         method: 'POST',
         headers: authHdr(),
         body: JSON.stringify({ query: query || undefined, max_results: 20, search_type: 'news', mode: 'serper' }),
@@ -195,8 +339,13 @@ function WebResults({ claimId }) {
       setArticles([]);
       setError(t('analysis.news_error'));
       setDone(true);
-    } finally { setLoading(false); }
-  }, [claimId, t]);
+    } finally {
+      setLoading(false);
+      setInitialLoading(false);
+    }
+  }, [claimSlug, t]);
+
+  useEffect(() => { performSearch(); }, []);
 
   const handleSubmit = (e) => { e.preventDefault(); performSearch(searchQuery); };
 
@@ -211,13 +360,10 @@ function WebResults({ claimId }) {
 
   return (
     <div style={{ background: 'transparent', fontFamily: 'Inter, sans-serif' }}>
-      {/* En-tête + recherche */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${borderColor}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <NewspaperIcon style={{ width: 20, height: 20, color: mutedColor }} />
-          <span style={{ fontSize: 18, fontWeight: 600, color: textColor }}>
-            {t('analysis.news')}
-          </span>
+          <span style={{ fontSize: 18, fontWeight: 600, color: textColor }}>{t('analysis.news')}</span>
         </div>
         <form onSubmit={handleSubmit} style={{ flex: 1, minWidth: 200 }}>
           <div style={{ position: 'relative' }}>
@@ -228,25 +374,13 @@ function WebResults({ claimId }) {
               onChange={e => setSearchQuery(e.target.value)}
               placeholder={t('analysis.search_placeholder')}
               style={{
-                width: '100%',
-                padding: '10px 12px 10px 38px',
-                borderRadius: 40,
-                border: `1px solid ${borderColor}`,
-                backgroundColor: inputBg,
-                color: textColor,
-                fontSize: 14,
-                fontFamily: 'Inter, sans-serif',
-                outline: 'none',
-                transition: 'border-color 0.2s, box-shadow 0.2s',
+                width: '100%', padding: '10px 12px 10px 38px', borderRadius: 40,
+                border: `1px solid ${borderColor}`, backgroundColor: inputBg,
+                color: textColor, fontSize: 14, fontFamily: 'Inter, sans-serif',
+                outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',
               }}
-              onFocus={e => {
-                e.target.style.borderColor = 'var(--hdr-accent, #000)';
-                e.target.style.boxShadow = '0 0 0 2px rgba(0,0,0,0.05)';
-              }}
-              onBlur={e => {
-                e.target.style.borderColor = borderColor;
-                e.target.style.boxShadow = 'none';
-              }}
+              onFocus={e => { e.target.style.borderColor = 'var(--hdr-text, #0A0A0B)'; e.target.style.boxShadow = '0 0 0 2px rgba(0,0,0,0.05)'; }}
+              onBlur={e => { e.target.style.borderColor = borderColor; e.target.style.boxShadow = 'none'; }}
             />
           </div>
         </form>
@@ -255,23 +389,23 @@ function WebResults({ claimId }) {
         </ActionButton>
       </div>
 
-      {/* Contenu */}
-      {!done && loading && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-          <div style={{ width: 32, height: 32, border: `3px solid ${borderColor}`, borderTopColor: 'var(--hdr-accent, #000)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      {initialLoading && !done && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 16, marginTop: 8 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <ShimmerBlock height={160} borderRadius={8} />
+              <ShimmerBlock width="60%" height={14} />
+              <ShimmerBlock width="80%" height={14} />
+            </div>
+          ))}
         </div>
       )}
-      {!done && !loading && (
-        <div style={{ textAlign: 'center', padding: 60, color: mutedColor }}>
-          <GlobeAltIcon style={{ width: 40, margin: '0 auto 12px', opacity: 0.5 }} />
-          <p style={{ fontSize: 14 }}>{t('analysis.start_search')}</p>
-        </div>
-      )}
+
       {error && (
         <div style={{ textAlign: 'center', padding: 40, color: C.red }}>
           <ExclamationTriangleIcon style={{ width: 32, margin: '0 auto 12px' }} />
           <p style={{ fontSize: 14 }}>{error}</p>
-          <ActionButton onClick={() => performSearch(searchQuery)} loading={false} icon={<ArrowPathIcon style={{ width: 16 }} />} variant="primary" style={{ marginTop: 16 }}>
+          <ActionButton onClick={() => performSearch(searchQuery)} loading={false} variant="primary" style={{ marginTop: 16 }}>
             {t('common.retry')}
           </ActionButton>
         </div>
@@ -287,16 +421,7 @@ function WebResults({ claimId }) {
                   <select
                     value={sourceFilter}
                     onChange={e => { setSourceFilter(e.target.value); setPage(1); }}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: 20,
-                      border: `1px solid ${borderColor}`,
-                      backgroundColor: inputBg,
-                      color: textColor,
-                      fontSize: 13,
-                      fontFamily: 'Inter, sans-serif',
-                      outline: 'none',
-                    }}
+                    style={{ padding: '6px 12px', borderRadius: 20, border: `1px solid ${borderColor}`, backgroundColor: inputBg, color: textColor, fontSize: 13, fontFamily: 'Inter, sans-serif', outline: 'none' }}
                   >
                     <option value="all">{t('analysis.all_sources')}</option>
                     {[...new Set(articles.map(a => a.source).filter(Boolean))].map(src => (
@@ -307,24 +432,12 @@ function WebResults({ claimId }) {
                 <span style={{ fontSize: 13, color: mutedColor }}>{filtered.length} {t('analysis.results')}</span>
               </div>
 
-              <div className="hide-scrollbar" style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-                gap: 16,
-              }}>
+              <div className="hide-scrollbar" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 16 }}>
                 {paginated.map(article => (
                   <a key={article.uniqueKey} href={article.link} target="_blank" rel="noopener noreferrer"
-                    style={{
-                      display: 'block',
-                      textDecoration: 'none',
-                      color: 'inherit',
-                      background: 'transparent',
-                      borderRadius: 8,
-                      transition: 'background 0.15s',
-                    }}
+                    style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: 'transparent', borderRadius: 8, transition: 'background 0.15s' }}
                     onMouseEnter={e => e.currentTarget.style.background = inputBg}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                  >
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <div style={{ aspectRatio: '16/9', backgroundColor: borderColor, borderRadius: 8, overflow: 'hidden' }}>
                       {article.image_url ? (
                         <img src={article.image_url} alt={article.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -337,21 +450,10 @@ function WebResults({ claimId }) {
                     <div style={{ padding: '12px 4px' }}>
                       <div style={{ fontSize: 12, color: mutedColor, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ fontWeight: 600, color: textColor }}>{article.source}</span>
-                        {article.pub_date && (
-                          <>
-                            <span style={{ color: mutedColor }}>·</span>
-                            <span>{formatDate(article.pub_date)}</span>
-                          </>
-                        )}
+                        {article.pub_date && <><span style={{ color: mutedColor }}>·</span><span>{formatDate(article.pub_date)}</span></>}
                       </div>
-                      <h3 style={{ fontSize: 14, fontWeight: 600, color: textColor, margin: '0 0 4px', lineHeight: 1.4 }}>
-                        {article.title}
-                      </h3>
-                      {article.snippet && (
-                        <p style={{ fontSize: 12, color: 'var(--hdr-text-sub, #475569)', margin: 0, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                          {article.snippet}
-                        </p>
-                      )}
+                      <h3 style={{ fontSize: 14, fontWeight: 600, color: textColor, margin: '0 0 4px', lineHeight: 1.4 }}>{article.title}</h3>
+                      {article.snippet && <p style={{ fontSize: 12, color: 'var(--hdr-text-sub, #475569)', margin: 0, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{article.snippet}</p>}
                     </div>
                   </a>
                 ))}
@@ -372,9 +474,7 @@ function WebResults({ claimId }) {
               )}
             </>
           ) : (
-            <div style={{ textAlign: 'center', padding: 60, color: mutedColor }}>
-              {t('analysis.no_articles')}
-            </div>
+            <div style={{ textAlign: 'center', padding: 60, color: mutedColor }}>{t('analysis.no_articles')}</div>
           )}
         </>
       )}
@@ -382,8 +482,8 @@ function WebResults({ claimId }) {
   );
 }
 
-// ─── ANALYSE IA (style Perplexity) ───────────────────────────────
-function AIAnalysisPanel({ claimId }) {
+// ─── ANALYSE IA (formatée intelligemment) ─────────────────────────
+function AIAnalysisPanel({ claimSlug }) {
   const { t } = useTranslation();
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -393,41 +493,51 @@ function AIAnalysisPanel({ claimId }) {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/v1/ai/claims/${claimId}/analyze`, {
+      const res = await fetch(`${API_BASE}/api/v1/ai/claims/${claimSlug}/analyze`, {
         method: 'POST',
         headers: authHdr(),
       });
       if (!res.ok) throw new Error('Erreur analyse');
       const data = await res.json();
-      setResult(data);
+      // Formater la réponse AVANT de l'afficher
+      const formatted = parseAIAnalysis(data);
+      setResult(formatted);
     } catch {
       setError(t('analysis.ai_error'));
     } finally { setLoading(false); }
   };
 
-  const analysis = result?.analysis || result || null;
-  const vConfig = analysis ? VERDICTS[analysis.verdict] || VERDICTS.Insuffisant : null;
-
   const textColor = 'var(--hdr-text, #0F172A)';
   const mutedColor = 'var(--hdr-text-muted, #64748B)';
   const surfaceBg = 'var(--hdr-surface, #F8FAFC)';
-  const accentColor = 'var(--hdr-accent, #000)';
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '20px 0' }}>
+        <ShimmerBlock height={100} borderRadius={12} />
+        <ShimmerBlock width="40%" height={24} />
+        <ShimmerBlock height={60} borderRadius={8} />
+        <div className="analysis-two-col" style={{ display: 'grid', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}><ShimmerBlock height={16} /><ShimmerBlock height={16} /><ShimmerBlock height={16} /></div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}><ShimmerBlock height={16} /><ShimmerBlock height={16} /><ShimmerBlock height={16} /></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: 'transparent', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--hdr-border, #E2E8F0)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <CpuChipIcon style={{ width: 20, height: 20, color: mutedColor }} />
-          <span style={{ fontSize: 18, fontWeight: 600, color: textColor }}>
-            {t('analysis.deep_analysis')}
-          </span>
+          <span style={{ fontSize: 18, fontWeight: 600, color: textColor }}>{t('analysis.deep_analysis')}</span>
         </div>
-        <ActionButton onClick={runAnalysis} loading={loading} variant="primary" icon={<CpuChipIcon style={{ width: 16 }} />}>
-          {loading ? t('analysis.analyzing') : result ? t('analysis.relaunch') : t('analysis.analyze')}
+        <ActionButton onClick={runAnalysis} loading={false} variant="primary" icon={<CpuChipIcon style={{ width: 16 }} />}>
+          {result ? t('analysis.relaunch') : t('analysis.analyze')}
         </ActionButton>
       </div>
 
-      {!result && !loading && !error && (
+      {!result && !error && (
         <div style={{ textAlign: 'center', padding: 60, color: mutedColor }}>
           <CpuChipIcon style={{ width: 48, margin: '0 auto 16px', opacity: 0.4 }} />
           <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: textColor }}>{t('analysis.ready')}</h3>
@@ -435,27 +545,19 @@ function AIAnalysisPanel({ claimId }) {
         </div>
       )}
 
-      {loading && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-          <div style={{ width: 32, height: 32, border: '3px solid var(--hdr-border, #E2E8F0)', borderTopColor: accentColor, borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-        </div>
-      )}
-
       {error && (
         <div style={{ textAlign: 'center', padding: 40, color: C.red }}>
           <ExclamationTriangleIcon style={{ width: 32, margin: '0 auto 12px' }} />
           <p style={{ fontSize: 14 }}>{error}</p>
-          <ActionButton onClick={runAnalysis} loading={false} icon={<ArrowPathIcon style={{ width: 16 }} />} variant="primary" style={{ marginTop: 16 }}>
-            {t('common.retry')}
-          </ActionButton>
+          <ActionButton onClick={runAnalysis} loading={false} variant="primary" style={{ marginTop: 16 }}>{t('common.retry')}</ActionButton>
         </div>
       )}
 
       {result && !error && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Carte verdict + score + cohérence */}
+          {/* Carte verdict + score */}
           <div style={{
-            backgroundColor: vConfig.bg,
+            backgroundColor: result.verdictBg,
             borderRadius: 12,
             padding: '20px 24px',
             display: 'flex',
@@ -463,75 +565,95 @@ function AIAnalysisPanel({ claimId }) {
             alignItems: 'center',
             gap: 20,
           }}>
-            <ScoreRing value={analysis.score} color={vConfig.color} size="lg" />
+            <ScoreRing value={result.score} color={result.verdictColor} size="lg" />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: vConfig.color }}>
-                {vConfig.icon} {vConfig.label}
+              <div style={{ fontSize: 22, fontWeight: 700, color: result.verdictColor }}>
+                {result.verdictIcon} {result.verdict}
               </div>
-              <div style={{ fontSize: 14, color: mutedColor, marginTop: 4 }}>
-                {t('analysis.source_reliability')} {analysis.source_credibility}%
-              </div>
+              {result.sourceCredibility > 0 && (
+                <div style={{ fontSize: 14, color: mutedColor, marginTop: 4 }}>
+                  {t('analysis.source_reliability')} {result.sourceCredibility}%
+                </div>
+              )}
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 13, color: mutedColor }}>{t('analysis.coherence')}</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: textColor }}>{analysis.coherence}%</div>
-            </div>
-          </div>
-
-          {/* Synthèse (gris pâle style Perplexity en mode clair) */}
-          <div style={{
-            backgroundColor: surfaceBg,
-            borderRadius: 10,
-            padding: '16px 20px',
-            color: textColor,
-            fontSize: 14,
-            lineHeight: 1.6,
-          }}>
-            <p style={{ margin: 0 }}>{analysis.analyse}</p>
-            {analysis.enriched_by_citizens && (
-              <div style={{ fontSize: 12, color: mutedColor, marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <UsersIcon style={{ width: 14 }} />
-                {t('analysis.enriched_by_citizens')}
+            {result.coherence > 0 && (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 13, color: mutedColor }}>{t('analysis.coherence')}</div>
+                <div style={{ fontSize: 20, fontWeight: 600, color: textColor }}>{result.coherence}%</div>
               </div>
             )}
           </div>
 
+          {/* Analyse détaillée (texte formaté) */}
+          {result.analyse && (
+            <div style={{
+              backgroundColor: surfaceBg,
+              borderRadius: 10,
+              padding: '20px 24px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <DocumentTextIcon style={{ width: 18, height: 18, color: mutedColor }} />
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: textColor, margin: 0 }}>
+                  {t('analysis.detailed_analysis')}
+                </h3>
+              </div>
+              <FormattedText text={result.analyse} />
+              {result.enriched_by_citizens && (
+                <div style={{ fontSize: 12, color: mutedColor, marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <UsersIcon style={{ width: 14 }} />
+                  {t('analysis.enriched_by_citizens')}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Points forts / faibles */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            <div>
-              <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 600, marginBottom: 12, color: textColor }}>
-                <CheckCircleIcon style={{ width: 18, color: C.green }} />
-                {t('analysis.strengths')}
-              </h4>
-              <ul style={{ listStyle: 'none', padding: 0, fontSize: 14, color: 'var(--hdr-text-sub, #334155)', lineHeight: 1.5 }}>
-                {(analysis.points_forts || []).map((p, i) => (
-                  <li key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                    <span style={{ color: C.green }}>•</span> {p}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 600, marginBottom: 12, color: textColor }}>
-                <XCircleIcon style={{ width: 18, color: C.red }} />
-                {t('analysis.weaknesses')}
-              </h4>
-              <ul style={{ listStyle: 'none', padding: 0, fontSize: 14, color: 'var(--hdr-text-sub, #334155)', lineHeight: 1.5 }}>
-                {(analysis.points_faibles || []).map((p, i) => (
-                  <li key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                    <span style={{ color: C.red }}>•</span> {p}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          <div className="analysis-two-col" style={{ display: 'grid', gap: 20 }}>
+            {result.points_forts && result.points_forts.length > 0 && (
+              <div style={{ backgroundColor: surfaceBg, borderRadius: 10, padding: '16px 20px' }}>
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 600, marginBottom: 12, color: textColor }}>
+                  <CheckCircleIcon style={{ width: 18, color: C.green }} />
+                  {t('analysis.strengths')}
+                </h4>
+                <ul style={{ listStyle: 'none', padding: 0, fontSize: 14, color: 'var(--hdr-text-sub, #334155)', lineHeight: 1.5 }}>
+                  {result.points_forts.map((p, i) => (
+                    <li key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <span style={{ color: C.green, flexShrink: 0 }}>•</span>
+                      <span>{typeof p === 'string' ? p : JSON.stringify(p)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {result.points_faibles && result.points_faibles.length > 0 && (
+              <div style={{ backgroundColor: surfaceBg, borderRadius: 10, padding: '16px 20px' }}>
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 600, marginBottom: 12, color: textColor }}>
+                  <XCircleIcon style={{ width: 18, color: C.red }} />
+                  {t('analysis.weaknesses')}
+                </h4>
+                <ul style={{ listStyle: 'none', padding: 0, fontSize: 14, color: 'var(--hdr-text-sub, #334155)', lineHeight: 1.5 }}>
+                  {result.points_faibles.map((p, i) => (
+                    <li key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <span style={{ color: C.red, flexShrink: 0 }}>•</span>
+                      <span>{typeof p === 'string' ? p : JSON.stringify(p)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Signaux clés */}
-          {analysis.key_signals && analysis.key_signals.length > 0 && (
+          {result.key_signals && result.key_signals.length > 0 && (
             <div style={{ backgroundColor: surfaceBg, borderRadius: 10, padding: '16px 20px' }}>
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: textColor }}>{t('analysis.key_signals')}</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, marginBottom: 8, color: textColor }}>
+                <LightBulbIcon style={{ width: 16, height: 16, color: C.amber }} />
+                {t('analysis.key_signals')}
+              </h4>
               <ul style={{ fontSize: 13, color: 'var(--hdr-text-sub, #475569)', paddingLeft: 20, margin: 0 }}>
-                {analysis.key_signals.map((s, i) => <li key={i} style={{ marginBottom: 4 }}>{s}</li>)}
+                {result.key_signals.map((s, i) => (
+                  <li key={i} style={{ marginBottom: 4 }}>{typeof s === 'string' ? s : JSON.stringify(s)}</li>
+                ))}
               </ul>
             </div>
           )}
@@ -545,8 +667,7 @@ function AIAnalysisPanel({ claimId }) {
 export default function AIAnalysisPage() {
   useGlobalStyles();
   const { t } = useTranslation();
-  const { id: eventId } = useParams();
-  const claimId = parseInt(eventId);
+  const { slug } = useParams();
   const navigate = useNavigate();
 
   const [claim, setClaim] = useState(null);
@@ -558,8 +679,8 @@ export default function AIAnalysisPage() {
   const loadData = useCallback(async () => {
     try {
       const [detailRes, scoresRes] = await Promise.all([
-        fetch(`${API_BASE}/api/v1/claims/${claimId}/detail`, { headers: authHdr() }),
-        fetch(`${API_BASE}/api/v1/claims/${claimId}/scores`),
+        fetch(`${API_BASE}/api/v1/claims/${slug}/detail`, { headers: authHdr() }),
+        fetch(`${API_BASE}/api/v1/claims/${slug}/scores`),
       ]);
       if (!detailRes.ok || !scoresRes.ok) throw new Error('Erreur chargement');
       const detail = await detailRes.json();
@@ -571,7 +692,7 @@ export default function AIAnalysisPage() {
     } finally {
       setLoading(false);
     }
-  }, [claimId, t]);
+  }, [slug, t]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -585,14 +706,30 @@ export default function AIAnalysisPage() {
   const bgColor = 'var(--hdr-bg, #FFFFFF)';
   const textColor = 'var(--hdr-text, #0F172A)';
   const mutedColor = 'var(--hdr-text-muted, #64748B)';
-  const accentColor = 'var(--hdr-accent, #000)';
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 36, height: 36, border: '3px solid var(--hdr-border, #E2E8F0)', borderTopColor: accentColor, borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: mutedColor }}>{t('analysis.loading')}</p>
+      <div style={{ minHeight: '100vh', backgroundColor: bgColor, fontFamily: 'Inter, sans-serif' }}>
+        <div style={{ borderBottom: '1px solid var(--hdr-border, #F1F5F9)', padding: '12px 20px', display: 'flex', gap: 8 }}>
+          <ShimmerBlock width={120} height={14} /><ShimmerBlock width={80} height={14} /><ShimmerBlock width={100} height={14} />
+        </div>
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '20px 16px 40px' }}>
+          <div style={{ marginBottom: 24 }}>
+            <ShimmerBlock width="30%" height={20} borderRadius={20} style={{ marginBottom: 12 }} />
+            <ShimmerBlock width="80%" height={32} borderRadius={8} style={{ marginBottom: 8 }} />
+            <ShimmerBlock width="50%" height={16} borderRadius={8} />
+          </div>
+          <div style={{ display: 'flex', gap: 20, marginBottom: 28 }}>
+            <ShimmerBlock width={64} height={64} borderRadius="50%" />
+            <ShimmerBlock width={64} height={64} borderRadius="50%" />
+            <ShimmerBlock width={64} height={64} borderRadius="50%" />
+          </div>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
+            <ShimmerBlock width={100} height={40} borderRadius={40} />
+            <ShimmerBlock width={100} height={40} borderRadius={40} />
+            <ShimmerBlock width={100} height={40} borderRadius={40} />
+          </div>
+          <ShimmerBlock height={200} borderRadius={12} />
         </div>
       </div>
     );
@@ -603,16 +740,7 @@ export default function AIAnalysisPage() {
       <div style={{ minHeight: '100vh', backgroundColor: bgColor, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
         <ExclamationTriangleIcon style={{ width: 48, marginBottom: 16, color: C.red }} />
         <p style={{ fontSize: 16, marginBottom: 16, color: textColor }}>{error}</p>
-        <button onClick={loadData} style={{
-          padding: '10px 24px',
-          borderRadius: 40,
-          border: 'none',
-          backgroundColor: accentColor,
-          color: '#fff',
-          fontSize: 14,
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}>
+        <button onClick={loadData} style={{ padding: '10px 24px', borderRadius: 40, border: 'none', backgroundColor: textColor, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
           {t('common.retry')}
         </button>
       </div>
@@ -621,44 +749,23 @@ export default function AIAnalysisPage() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: bgColor, fontFamily: 'Inter, sans-serif' }}>
-      {/* Breadcrumb */}
-      <div style={{
-        borderBottom: '1px solid var(--hdr-border, #F1F5F9)',
-        padding: '12px 20px',
-        fontSize: 13,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        color: mutedColor,
-        flexWrap: 'wrap',
-      }}>
+      <div style={{ borderBottom: '1px solid var(--hdr-border, #F1F5F9)', padding: '12px 20px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, color: mutedColor, flexWrap: 'wrap' }}>
         <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
           <ArrowLeftIcon style={{ width: 14 }} /> {t('common.home')}
         </Link>
         <span>/</span>
-        <Link to={`/event/${claimId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-          {t('common.detail')}
-        </Link>
+        <Link to={`/event/${slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>{t('common.detail')}</Link>
         <span>/</span>
         <span style={{ fontWeight: 500, color: textColor }}>{t('analysis.title')}</span>
       </div>
 
       <div style={{ maxWidth: 1120, margin: '0 auto', padding: '20px 16px 40px' }}>
-        {/* En-tête claim */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-            {claim?.category && (
-              <span style={{ padding: '4px 10px', borderRadius: 20, backgroundColor: 'var(--hdr-surface, #F1F5F9)', fontSize: 12, color: 'var(--hdr-text-sub, #334155)' }}>
-                {claim.category}
-              </span>
-            )}
-            <span style={{ padding: '4px 10px', borderRadius: 20, backgroundColor: 'rgba(124,58,237,0.08)', color: C.purple, fontSize: 12, fontWeight: 500 }}>
-              {t('analysis.ai_analysis')}
-            </span>
+            {claim?.category && <span style={{ padding: '4px 10px', borderRadius: 20, backgroundColor: 'var(--hdr-surface, #F1F5F9)', fontSize: 12, color: 'var(--hdr-text-sub, #334155)' }}>{claim.category}</span>}
+            <span style={{ padding: '4px 10px', borderRadius: 20, backgroundColor: 'rgba(124,58,237,0.08)', color: C.purple, fontSize: 12, fontWeight: 500 }}>{t('analysis.ai_analysis')}</span>
           </div>
-          <h1 style={{ fontSize: 'clamp(22px, 5vw, 28px)', fontWeight: 700, margin: '0 0 8px', color: textColor }}>
-            {claim?.title}
-          </h1>
+          <h1 style={{ fontSize: 'clamp(22px, 5vw, 28px)', fontWeight: 700, margin: '0 0 8px', color: textColor }}>{claim?.title}</h1>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 13, color: mutedColor }}>
             {claim?.claimant && <span>🏛️ {claim.claimant}</span>}
             {claim?.department && <span>📍 {claim.department}</span>}
@@ -666,119 +773,44 @@ export default function AIAnalysisPage() {
           </div>
         </div>
 
-        {/* Scores */}
         {scores && (
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 20, marginBottom: 28 }}>
             <ScoreRing value={scores.ai_score} color={C.purple} size="sm" label={t('analysis.ai_score')} />
             <ScoreRing value={scores.crowd_score} color="#0066CC" size="sm" label={t('analysis.crowd_score')} />
             <ScoreRing value={scores.composite} color={scores.verdict_color || C.green} size="sm" label={t('analysis.composite_score')} formula={compositeFormula} />
             {scores.verdict && (
-              <div style={{
-                padding: '6px 14px',
-                borderRadius: 40,
-                background: VERDICTS[scores.verdict]?.bg,
-                color: VERDICTS[scores.verdict]?.color || textColor,
-                fontSize: 13,
-                fontWeight: 500,
-              }}>
+              <div style={{ padding: '6px 14px', borderRadius: 40, background: VERDICTS[scores.verdict]?.bg, color: VERDICTS[scores.verdict]?.color || textColor, fontSize: 13, fontWeight: 500 }}>
                 {VERDICTS[scores.verdict]?.icon} {VERDICTS[scores.verdict]?.label}
               </div>
             )}
           </div>
         )}
 
-        {/* Barre d'onglets responsive */}
-        <div style={{
-          display: 'flex',
-          gap: 4,
-          padding: 4,
-          backgroundColor: 'var(--hdr-surface, #F1F5F9)',
-          borderRadius: 40,
-          marginBottom: 24,
-          overflowX: 'auto',
-          whiteSpace: 'nowrap',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-        }}>
+        <div style={{ display: 'flex', gap: 4, padding: 4, backgroundColor: 'var(--hdr-surface, #F1F5F9)', borderRadius: 40, marginBottom: 24, overflowX: 'auto', whiteSpace: 'nowrap', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {TABS.map(tabItem => (
-            <button
-              key={tabItem.id}
-              onClick={() => setTab(tabItem.id)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                padding: '10px 16px',
-                borderRadius: 40,
-                border: 'none',
-                backgroundColor: tab === tabItem.id ? bgColor : 'transparent',
-                color: tab === tabItem.id ? textColor : mutedColor,
-                fontWeight: tab === tabItem.id ? 600 : 400,
-                fontSize: 14,
-                fontFamily: 'Inter, sans-serif',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                boxShadow: tab === tabItem.id ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
-                flexShrink: 0,
-              }}
-            >
+            <button key={tabItem.id} onClick={() => setTab(tabItem.id)}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 16px', borderRadius: 40, border: 'none', backgroundColor: tab === tabItem.id ? bgColor : 'transparent', color: tab === tabItem.id ? textColor : mutedColor, fontWeight: tab === tabItem.id ? 600 : 400, fontSize: 14, fontFamily: 'Inter, sans-serif', cursor: 'pointer', transition: 'all 0.15s', boxShadow: tab === tabItem.id ? '0 1px 4px rgba(0,0,0,0.06)' : 'none', flexShrink: 0 }}>
               {tabItem.icon}
               <span className="tab-label-full">{tabItem.label}</span>
               <span className="tab-label-short" style={{ display: 'none' }}>{tabItem.shortLabel}</span>
             </button>
           ))}
-          {/* Bouton Discussions */}
-          <button
-            onClick={() => navigate(`/discussion/${claimId}`)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              padding: '10px 16px',
-              borderRadius: 40,
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: mutedColor,
-              fontSize: 14,
-              fontFamily: 'Inter, sans-serif',
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          >
+          <button onClick={() => navigate(`/discussions/${slug}`)}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 16px', borderRadius: 40, border: 'none', backgroundColor: 'transparent', color: mutedColor, fontSize: 14, fontFamily: 'Inter, sans-serif', cursor: 'pointer', flexShrink: 0 }}>
             <ChatBubbleLeftRightIcon style={{ width: 16 }} />
             <span className="tab-label-full">{t('analysis.tab_discussions')}</span>
             <span className="tab-label-short" style={{ display: 'none' }}>Discussions</span>
           </button>
-          {/* Bouton Chat */}
-          <button
-            onClick={() => navigate(`/chat/${claimId}`, { state: { claimTitle: claim?.title } })}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              padding: '10px 16px',
-              borderRadius: 40,
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: mutedColor,
-              fontSize: 14,
-              fontFamily: 'Inter, sans-serif',
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          >
+          <button onClick={() => navigate(`/chat/${slug}`, { state: { claimTitle: claim?.title } })}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 16px', borderRadius: 40, border: 'none', backgroundColor: 'transparent', color: mutedColor, fontSize: 14, fontFamily: 'Inter, sans-serif', cursor: 'pointer', flexShrink: 0 }}>
             <SparklesIcon style={{ width: 16 }} />
-            <span className="tab-label-full">PichAI Chat</span>
+            <span className="tab-label-full">{t('analysis.tab_chat')}</span>
             <span className="tab-label-short" style={{ display: 'none' }}>Chat</span>
           </button>
         </div>
 
-        {/* Contenu */}
-        {tab === 'analyse' && <AIAnalysisPanel claimId={claimId} />}
-        {tab === 'web' && <WebResults claimId={claimId} />}
+        {tab === 'analyse' && <AIAnalysisPanel claimSlug={slug} />}
+        {tab === 'web' && <WebResults claimSlug={slug} />}
       </div>
     </div>
   );

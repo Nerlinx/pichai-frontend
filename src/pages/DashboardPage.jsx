@@ -1,1046 +1,680 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Link, 
-  useNavigate,
-  useLocation
-} from 'react-router-dom';
+// ═══════════════════════════════════════════════════════════════
+// PICHAI — DashboardPage.jsx (corrigé · startTransition + Suspense)
+// ═══════════════════════════════════════════════════════════════
+
+import React, { useState, useEffect, startTransition } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
-  // Icônes principales
-  ChartBarIcon,
-  UserGroupIcon,
-  ArrowTrendingUpIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  ArrowTrendingDownIcon,
-  CurrencyDollarIcon,
-  AcademicCapIcon,
-  BuildingLibraryIcon,
-  CpuChipIcon,
-  DocumentTextIcon,
-  LightBulbIcon,
-  MagnifyingGlassIcon,
-  
-  ArrowRightIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
-  EyeIcon,
-  ChatBubbleLeftRightIcon,
-  ShieldCheckIcon,
-  BellAlertIcon,
-  // Nouveaux icônes pour les sections
-  FireIcon,
-  StarIcon,
-  RocketLaunchIcon,
-  ChartPieIcon,
-  UserCircleIcon,
-  AdjustmentsHorizontalIcon,
-  InformationCircleIcon,
-  ClockIcon as ClockSolid,
-  CheckBadgeIcon
+  ChartBarIcon, BoltIcon, EyeIcon, ArrowTrendingUpIcon,
+  ClockIcon, SparklesIcon, PencilSquareIcon, BellIcon,
+  KeyIcon, TrashIcon, ChevronRightIcon, ExclamationTriangleIcon,
+  UserCircleIcon, ArrowUpIcon, ShieldCheckIcon, LightBulbIcon,
+  FireIcon, CheckCircleIcon as CheckCircleSolid,
 } from '@heroicons/react/24/outline';
-import {
-  ChartBarIcon as ChartBarSolid,
-  FireIcon as FireSolid,
-  StarIcon as StarSolid
-} from '@heroicons/react/24/solid';
+import { CheckCircleIcon } from '@heroicons/react/24/solid';
+import { dashboardAPI, eventsAPI } from '../services/api';
+import { useAuth } from '../hooks/useUser';
 
-// Services API
-import { 
-  dashboardAPI, 
-  eventsAPI, 
-  userAPI, 
-  analyticsAPI,
-  checkApiHealth  
-} from '../services/api';
-
-// Composants
-import EventCard from '../components/dashboards/EventCard';
-import QuickActions from '../components/dashboards/QuickActions';
-import CredibilityScore from '../components/dashboards/CredibilityScore';
-import DataChart from '../components/dashboards/DataChart';
-import ActivityFeed from '../components/dashboards/ActivityFeed';
-
-// Hooks personnalisés
-import { useUser } from '../hooks/useUser';
-import { useNotifications } from '../hooks/useNotifications';
-
-
-// Données mock pour le développement
-const mockDashboardData = {
-  personal: {
-    total_contributions: 12,
-    validated_contributions: 10,
-    credibility_score: 85,
-    influence_score: 75,
-    accuracy_score: 80,
-    ranking: 42,
-    pending_contributions: 2,
-    category_performance: [
-      { name: 'économie', accuracy: 85 },
-      { name: 'éducation', accuracy: 75 },
-      { name: 'gouvernance', accuracy: 90 }
-    ],
-    recent_badges: [
-      { name: 'Première contribution' },
-      { name: 'Vérificateur actif' }
-    ]
-  },
-  
-  followedEvents: [
-    {
-      id: 1,
-      title: 'Prix du riz importé dépasse 200 HTG/kg avant juin 2026',
-      category: 'économie',
-      consensus: 68,
-      participants: 1245,
-      trend_direction: 'up',
-      status: 'active',
-      days_left: 45,
-      attention_flag: false,
-      ia_confidence_score: 0.71,
-      forecast_value: '185 HTG/kg'
-    },
-    {
-      id: 2,
-      title: 'Réouverture des écoles publiques dans la zone métropolitaine',
-      category: 'éducation',
-      consensus: 75,
-      participants: 890,
-      trend_direction: 'up',
-      status: 'active',
-      days_left: 30,
-      attention_flag: true,
-      ia_confidence_score: 0.82,
-      forecast_value: '85% de réouverture'
-    }
-  ],
-  
-  recommendations: [
-    {
-      id: 3,
-      title: 'Taux de change USD/HTG atteint 150',
-      category: 'économie',
-      consensus: 55,
-      participants: 2100,
-      forecast_value: '145 HTG'
-    },
-    {
-      id: 4,
-      title: 'Projet de route nationale 6 - Avancement des travaux',
-      category: 'infrastructure',
-      consensus: 60,
-      participants: 1200,
-      forecast_value: '65% complété'
-    }
-  ],
-  
-  contributions: [
-    {
-      id: 1,
-      event_id: 1,
-      content: 'Ajout de données sur les importations de riz de janvier 2024',
-      type: 'source',
-      upvotes: 10,
-      downvotes: 2,
-      created_at: '2024-01-15T10:30:00',
-      status: 'validated'
-    }
-  ],
-  
-  trends: {
-    chart_data: {
-      labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
-      datasets: [
-        {
-          label: 'Événements actifs',
-          data: [12, 15, 14, 18, 16, 20, 22],
-          borderColor: 'rgb(59, 130, 246)',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)'
-        }
-      ]
-    }
-  },
-  
-  aiInsights: {
-    insights: [
-      {
-        id: 1,
-        title: 'Tendance inflation',
-        description: "L'inflation devrait se maintenir autour de 25% sur les 3 prochains mois selon les données disponibles.",
-        confidence: 78,
-        category: 'économie'
-      },
-      {
-        id: 2,
-        title: 'Éducation en ligne',
-        description: 'La participation aux cours en ligne a augmenté de 30% ce mois-ci dans la région métropolitaine.',
-        confidence: 92,
-        category: 'éducation'
-      }
-    ]
-  }
+// ═════════════════════════ DESIGN TOKENS ═══════════════════════
+const C = {
+  bg: '#FFFFFF', surface: '#F7F7F8', surface2: '#F0F0F2',
+  border: '#E8E8EC', borderDark: '#D0D0D8',
+  text: '#0A0A0B', textSub: '#52525B', textMuted: '#A1A1AA',
+  black: '#0A0A0B', blackHover: '#27272A',
+  green: '#059669', greenBg: '#F0FDF4', greenBorder: '#BBF7D0',
+  red: '#DC2626', redBg: '#FEF2F2', redBorder: '#FECACA',
+  amber: '#D97706', amberBg: '#FFFBEB', amberBorder: '#FDE68A',
+  blue: '#2563EB', blueBg: '#EFF6FF', blueBorder: '#BFDBFE',
+  activeBg: '#E2EDFD', activeText: '#0A0A0B',
 };
 
-// Variable de configuration
-const USE_MOCK_DATA = true;
+// ═══════════════════════════ CSS ═══════════════════════════════
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-const DashboardPage = () => {
-  // Hooks personnalisés
-  const { user, isLoading: userLoading } = useUser();
-  const { notifications, unreadCount } = useNotifications();
-  
-  // États principaux
-  const [dashboardData, setDashboardData] = useState({
-    personal: null,
-    followedEvents: [],
-    recommendations: [],
-    contributions: [],
-    trends: null,
-    aiInsights: []
-  });
-  
-  const [filters, setFilters] = useState({
-    timeRange: 'week',
-    category: 'all',
-    status: 'active'
-  });
-  
-  const [loading, setLoading] = useState({
-    main: true,
-    personal: true,
-    events: true,
-    insights: true
-  });
-  
-  const [error, setError] = useState(null);
-  const [activeView, setActiveView] = useState('overview'); // 'overview', 'events', 'analytics'
-  
-  const navigate = useNavigate();
-  const location = useLocation();
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  // Effet pour charger les données du dashboard
-  useEffect(() => {
-    const loadDashboard = async () => {
-  try {
-    setLoading(prev => ({ ...prev, main: true }));
-    
-    // Vérifier d'abord la santé de l'API
-    const health = await checkApiHealth();
-    console.log('Statut API:', health);
-    
-    if (!health.backend && !USE_MOCK_DATA) {
-      setError({
-        message: 'Serveur backend non disponible',
-        details: 'Le serveur API ne répond pas. Vérifiez que le backend FastAPI est en cours d\'exécution.',
-        suggestion: 'Veuillez démarrer le serveur backend ou activez le mode de développement avec des données mock.'
-      });
-      return;
-    }
-
-    // Chargement en parallèle avec gestion d'erreur individuelle
-    const loadWithFallback = async (apiCall, fallbackData, key) => {
-      try {
-        const response = await apiCall();
-        return response.data || response;
-      } catch (err) {
-        console.warn(`Erreur chargement ${key}:`, err);
-        return fallbackData;
-      }
-    };
-
-    const [
-      personalData,
-      eventsData,
-      recommendationsData,
-      contributionsData,
-      trendsData,
-      insightsData
-    ] = await Promise.all([
-      loadWithFallback(
-        () => dashboardAPI.getPersonalStats(),
-        mockDashboardData.personal,
-        'personal'
-      ),
-      loadWithFallback(
-        () => eventsAPI.getFollowedEvents({ limit: 6 }),
-        { events: mockDashboardData.followedEvents },
-        'events'
-      ),
-      loadWithFallback(
-        () => eventsAPI.getRecommendedEvents({ limit: 4 }),
-        { events: mockDashboardData.recommendations },
-        'recommendations'
-      ),
-      loadWithFallback(
-        () => userAPI.getUserContributions({ limit: 5 }),
-        { contributions: mockDashboardData.contributions },
-        'contributions'
-      ),
-      loadWithFallback(
-        () => analyticsAPI.getTrends(filters.timeRange),
-        mockDashboardData.trends,
-        'trends'
-      ),
-      loadWithFallback(
-        () => dashboardAPI.getAIInsights(),
-        mockDashboardData.aiInsights,
-        'insights'
-      )
-    ]);
-
-    setDashboardData({
-      personal: personalData,
-      followedEvents: eventsData.events || eventsData,
-      recommendations: recommendationsData.events || recommendationsData,
-      contributions: contributionsData.contributions || contributionsData,
-      trends: trendsData,
-      aiInsights: insightsData.insights || insightsData
-    });
-
-  } catch (err) {
-    console.error('Erreur critique chargement dashboard:', err);
-    setError({
-      message: 'Impossible de charger le tableau de bord',
-      details: err.detail || err.message,
-      suggestion: 'Utilisation des données de démonstration'
-    });
-    
-    // Fallback vers les données mock en cas d'erreur totale
-    setDashboardData({
-      personal: mockDashboardData.personal,
-      followedEvents: mockDashboardData.followedEvents,
-      recommendations: mockDashboardData.recommendations,
-      contributions: mockDashboardData.contributions,
-      trends: mockDashboardData.trends,
-      aiInsights: mockDashboardData.aiInsights.insights
-    });
-  } finally {
-    setLoading(prev => ({ 
-      ...prev, 
-      main: false,
-      personal: false,
-      events: false,
-      insights: false 
-    }));
+  .dash {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: ${C.bg};
+    color: ${C.text};
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
   }
+
+  .dash-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+  }
+  @media (max-width: 1024px) {
+    .dash-layout { grid-template-columns: 1fr; }
+    .sidebar { display: none !important; }
+  }
+
+  .sidebar {
+    background: ${C.bg};
+    border-right: 1px solid ${C.border};
+    display: flex; flex-direction: column;
+    position: sticky; top: 60px; height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+
+  .sidebar-section { padding: 12px; flex: 1; }
+
+  .sidebar-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 9px 10px; border-radius: 8px;
+    font-size: 14px; font-weight: 500; color: ${C.textSub};
+    background: none; border: none; cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    text-align: left; transition: background 0.12s, color 0.12s;
+    white-space: nowrap; text-decoration: none;
+  }
+  .sidebar-btn:hover { background: ${C.surface2}; color: ${C.text}; }
+  .sidebar-btn.active {
+    background: ${C.activeBg}; color: ${C.activeText}; font-weight: 600;
+  }
+  .sidebar-btn.active svg { color: ${C.activeText}; }
+  .sidebar-btn svg { flex-shrink: 0; width: 18px; height: 18px; color: ${C.textSub}; }
+
+  .sidebar-notif-badge {
+    margin-left: auto; min-width: 18px; height: 18px;
+    background: ${C.red}; color: #fff; border-radius: 9px;
+    font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 5px;
+  }
+
+  .mobile-tabs {
+    display: none;
+    position: sticky; top: 60px; z-index: 45;
+    background: ${C.bg};
+    border-bottom: 1px solid ${C.border};
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .mobile-tabs::-webkit-scrollbar { display: none; }
+  .mobile-tabs-inner {
+    display: flex; gap: 2px; padding: 8px 12px;
+  }
+  .mobile-tab {
+    flex-shrink: 0; padding: 7px 14px; border-radius: 8px;
+    font-size: 13px; font-weight: 500;
+    border: 1px solid transparent; background: none;
+    color: ${C.textMuted}; cursor: pointer;
+    font-family: 'Inter', sans-serif; transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .mobile-tab:hover { background: ${C.surface2}; color: ${C.text}; }
+  .mobile-tab.active {
+    background: ${C.activeBg}; color: ${C.activeText}; font-weight: 600;
+  }
+  @media (max-width: 1024px) {
+    .mobile-tabs { display: block; }
+  }
+
+  .main-content {
+    padding: 28px 28px 64px;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  @media (max-width: 768px) { .main-content { padding: 16px 16px 48px; } }
+
+  .card {
+    background: ${C.bg};
+    border: 1px solid ${C.border};
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 18px;
+    border-bottom: 1px solid ${C.border};
+  }
+  .card-title {
+    font-size: 13px; font-weight: 700;
+    color: ${C.text}; letter-spacing: -0.01em;
+  }
+  .card-badge {
+    margin-left: auto;
+    font-size: 11px; color: ${C.textMuted};
+    font-weight: 500;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 24px;
+  }
+  @media (max-width: 1100px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 580px)  { .metrics-grid { grid-template-columns: 1fr 1fr; } }
+
+  .metric-tile {
+    padding: 18px 20px; border-radius: 12px;
+    border: 1px solid ${C.border}; background: ${C.bg};
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+  .metric-tile:hover {
+    border-color: ${C.borderDark};
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .metric-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 12px;
+    background: ${C.surface};
+  }
+  .metric-value {
+    font-size: 28px; font-weight: 700; color: ${C.text};
+    line-height: 1; margin-bottom: 4px;
+    font-feature-settings: "tnum";
+  }
+  .metric-label {
+    font-size: 12px; color: ${C.textMuted}; font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .metric-delta {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11px; font-weight: 600;
+    padding: 2px 7px; border-radius: 20px;
+  }
+  .delta-up   { background: ${C.greenBg}; color: ${C.green}; }
+  .delta-flat { background: ${C.surface}; color: ${C.textMuted}; }
+  .delta-down { background: ${C.redBg};   color: ${C.red}; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 16px;
+  }
+  @media (max-width: 1100px) { .two-col { grid-template-columns: 1fr; } }
+
+  .feed-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid ${C.border};
+    cursor: pointer; transition: background 0.1s;
+  }
+  .feed-row:last-child { border-bottom: none; }
+  .feed-row:hover { background: ${C.surface}; }
+  .feed-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; background: ${C.surface};
+  }
+  .feed-title {
+    font-size: 13px; font-weight: 600; color: ${C.text};
+    margin-bottom: 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .feed-meta {
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .claim-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid ${C.border};
+    cursor: pointer; transition: background 0.1s;
+  }
+  .claim-row:last-child { border-bottom: none; }
+  .claim-row:hover { background: ${C.surface}; }
+  .claim-row-title {
+    font-size: 13px; font-weight: 600; color: ${C.text};
+    flex: 1; min-width: 0; padding-right: 12px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .claim-row-foot {
+    display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .tag {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; border: 1px solid;
+  }
+  .tag-green  { background: ${C.greenBg};  color: ${C.green};  border-color: ${C.greenBorder};  }
+  .tag-red    { background: ${C.redBg};    color: ${C.red};    border-color: ${C.redBorder};    }
+  .tag-amber  { background: ${C.amberBg};  color: ${C.amber};  border-color: ${C.amberBorder};  }
+  .tag-blue   { background: ${C.blueBg};   color: ${C.blue};   border-color: ${C.blueBorder};   }
+  .tag-neutral{ background: ${C.surface};  color: ${C.textSub};border-color: ${C.border};        }
+
+  .prog-track {
+    height: 5px; border-radius: 3px;
+    background: ${C.surface2}; overflow: hidden;
+  }
+  .prog-fill {
+    height: 100%; border-radius: 3px;
+    transition: width 1.2s cubic-bezier(.22,1,.36,1);
+  }
+
+  .btn-black {
+    background: ${C.black}; color: #fff;
+    border: none; border-radius: 8px;
+    padding: 9px 18px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-black:hover { background: ${C.blackHover}; }
+
+  .btn-outline {
+    background: transparent; border: 1px solid ${C.border};
+    border-radius: 8px; padding: 8px 16px;
+    font-size: 13px; color: ${C.textSub}; cursor: pointer;
+    font-family: 'Inter', sans-serif; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-outline:hover { border-color: ${C.text}; color: ${C.text}; }
+
+  .btn-gray {
+    background: ${C.surface}; border: 1px solid ${C.border};
+    border-radius: 8px; padding: 9px 18px;
+    font-size: 13px; font-weight: 600; color: ${C.text};
+    cursor: pointer; font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+  }
+  .btn-gray:hover { background: ${C.surface2}; }
+
+  .ring-wrap { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+
+  .tabs { display: flex; gap: 2px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab {
+    padding: 7px 14px; border-radius: 7px;
+    font-size: 13px; font-weight: 500;
+    border: 1px solid transparent; background: none;
+    color: ${C.textMuted}; cursor: pointer;
+    font-family: 'Inter', sans-serif; transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .tab:hover { background: ${C.surface}; color: ${C.text}; }
+  .tab.active {
+    background: ${C.activeBg}; color: ${C.activeText}; font-weight: 600;
+    border-color: ${C.activeBg};
+  }
+
+  .toggle {
+    width: 38px; height: 20px; border-radius: 10px;
+    position: relative; cursor: pointer; transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-knob {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; position: absolute; top: 2px; left: 2px;
+    transition: left 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .toggle.on .toggle-knob { left: 20px; }
+
+  .inp {
+    width: 100%; background: ${C.surface};
+    border: 1px solid ${C.border}; border-radius: 8px;
+    padding: 10px 14px; font-size: 14px; color: ${C.text};
+    font-family: 'Inter', sans-serif; outline: none;
+    transition: border-color 0.15s;
+  }
+  .inp:focus { border-color: ${C.text}; background: ${C.bg}; }
+  .inp::placeholder { color: ${C.textMuted}; }
+  .inp-label {
+    display: block; font-size: 12px; font-weight: 600;
+    color: ${C.textSub}; margin-bottom: 6px;
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .shimmer {
+    animation: shimmer 1.8s infinite linear;
+    background: linear-gradient(90deg, ${C.surface} 25%, ${C.surface2} 50%, ${C.surface} 75%);
+    background-size: 200% 100%;
+    border-radius: 8px;
+  }
+
+  .fade-up { animation: fadeUp 0.3s ease both; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .space-y > * + * { margin-top: 16px; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300;
+    display: flex; align-items: center; justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+  .modal-box {
+    background: ${C.bg}; border-radius: 12px; padding: 24px;
+    max-width: 440px; width: 90%; box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 80px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .bar-body { width: 100%; border-radius: 4px 4px 0 0; background: ${C.black}; min-height: 4px; transition: height 0.8s ease; }
+  .bar-body.empty { background: ${C.surface2}; }
+  .bar-label { font-size: 10px; color: ${C.textMuted}; text-align: center; white-space: nowrap; }
+
+  /* Grille impact responsive */
+  .impact-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 768px) {
+    .impact-stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+`;
+
+// ═══════════════════════ HELPERS ══════════════════════════════
+const STATUS_CFG = {
+  in_progress: { labelKey: 'status_in_progress', tag: 'tag-blue' },
+  pending:     { labelKey: 'status_pending',     tag: 'tag-amber' },
+  verified:    { labelKey: 'status_verified',    tag: 'tag-green' },
+  rejected:    { labelKey: 'status_rejected',    tag: 'tag-red' },
+  unverified:  { labelKey: 'status_unverified',  tag: 'tag-neutral' },
 };
 
-    loadDashboard();
-  }, [filters.timeRange, location.key]);
+const TYPE_CFG = {
+  vote:     { emoji: '🗳️', labelKey: 'type_vote',           tag: 'tag-blue' },
+  comment:  { emoji: '💬', labelKey: 'type_comment',        tag: 'tag-neutral' },
+  proof:    { emoji: '📎', labelKey: 'type_proof',          tag: 'tag-green' },
+  question: { emoji: '❓', labelKey: 'type_question_ia',     tag: 'tag-amber' },
+};
 
-  // Gestion des filtres
-  const handleFilterChange = (filterType, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterType]: value
-    }));
+const normalizeClaim = (c) => {
+  if (!c) return c;
+  return {
+    id: c.id, title: c.title || '',
+    category: typeof c.category === 'string' ? c.category : c.category?.name || 'Général',
+    status: c.status || 'pending',
+    currentConsensus: (c.crowd_confidence_score != null && (c.total_votes || 0) > 0)
+      ? Math.round(c.crowd_confidence_score * 100) : null,
+    participants: c.total_votes || 0,
+    attention_flag: c.attention_flag || false,
   };
+};
 
-  // Calcul des métriques dérivées
-  const derivedMetrics = useMemo(() => {
-    if (!dashboardData.personal) return null;
-    
-    const { personal, followedEvents } = dashboardData;
-    
-    // Taux d'engagement
-    const engagementRate = personal.total_contributions > 0 
-      ? (personal.validated_contributions / personal.total_contributions) * 100 
-      : 0;
-    
-    // Impact score
-    const impactScore = Math.min(
-      ((personal.influence_score || 0) + (engagementRate / 10) + (personal.credibility_score || 0)) / 3,
-      100
-    );
-    
-    // Trends detection
-    const trendingUp = followedEvents.filter(event => 
-      event.trend_direction === 'up'
-    ).length;
-    
-    const trendingDown = followedEvents.filter(event => 
-      event.trend_direction === 'down'
-    ).length;
-    
+const ensureArray = (v) => (Array.isArray(v) ? v : v?.data || []);
+
+const relativeTime = (dateStr) => {
+  if (!dateStr) return '—';
+  const m = Math.floor((Date.now() - new Date(dateStr)) / 60000);
+  if (m < 1) return 'À l\'instant';
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} h`;
+  return `${Math.floor(h / 24)} j`;
+};
+
+// ═══════════════ COMPOSANTS RÉUTILISABLES ════════════════════
+const ScoreRing = ({ pct = 0, size = 80, color = C.black }) => {
+  const r = (size - 8) / 2;
+  const circ = 2 * Math.PI * r;
+  const fill = (Math.min(Math.max(pct, 0), 100) / 100) * circ;
+  return (
+    <div className="ring-wrap" style={{ width: size, height: size }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={C.surface2} strokeWidth={5} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={5}
+          strokeDasharray={`${fill} ${circ - fill}`} strokeLinecap="round"
+          style={{ transition: 'stroke-dasharray 1.2s ease' }} />
+      </svg>
+      <div style={{ position: 'absolute', textAlign: 'center', fontSize: size * 0.22, fontWeight: 700, color, fontFeatureSettings: '"tnum"' }}>
+        {Math.round(pct)}
+      </div>
+    </div>
+  );
+};
+
+const Toggle = ({ value, onChange }) => (
+  <div className={`toggle ${value ? 'on' : ''}`}
+    style={{ background: value ? C.black : C.surface2 }}
+    onClick={() => onChange(!value)}>
+    <div className="toggle-knob" />
+  </div>
+);
+
+const Sk = ({ w = '100%', h = 16, r = 8 }) => (
+  <div className="shimmer" style={{ width: w, height: h, borderRadius: r }} />
+);
+
+// ═══════════════ GRAPHE ACTIVITÉ ════════════════════════════
+const ActivityBarChart = ({ activity = [], t }) => {
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
     return {
-      engagementRate,
-      impactScore,
-      trendingUp,
-      trendingDown,
-      neutral: followedEvents.length - (trendingUp + trendingDown)
+      label: d.toLocaleDateString('fr-FR', { month: 'short' }),
+      count: 0,
+      year: d.getFullYear(),
+      month: d.getMonth(),
     };
-  }, [dashboardData]);
-
-  // Événements nécessitant attention
-  const eventsNeedingAttention = useMemo(() => {
-    return dashboardData.followedEvents.filter(event => {
-      const hoursSinceUpdate = event.hours_since_update || 24;
-      const consensusChange = event.consensus_change_24h || 0;
-      
-      return (
-        hoursSinceUpdate > 48 || // Pas mis à jour depuis plus de 2 jours
-        Math.abs(consensusChange) > 20 || // Changement de consensus significatif
-        event.attention_flag // Flag spécifique
-      );
-    });
-  }, [dashboardData.followedEvents]);
-
-  // Gestion des erreurs
-  if (error) {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center p-8">
-        <div className="text-center max-w-md">
-          <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Impossible de charger le tableau de bord
-          </h2>
-          <p className="text-gray-600 mb-6">{error.message}</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-            >
-              Réessayer
-            </button>
-            <Link
-              to="/"
-              className="px-6 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition font-medium text-center"
-            >
-              Retour à l'accueil
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Écran de chargement
-  if (loading.main) {
-    return (
-      <div className="space-y-8">
-        {/* Skeleton pour l'en-tête */}
-        <div className="animate-pulse">
-          <div className="h-10 bg-gray-200 rounded-lg w-1/3 mb-4"></div>
-          <div className="h-6 bg-gray-200 rounded-lg w-1/2"></div>
-        </div>
-        
-        {/* Skeleton pour les KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
-          ))}
-        </div>
-        
-        {/* Skeleton pour la grille principale */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 h-96 bg-gray-200 rounded-xl"></div>
-          <div className="h-96 bg-gray-200 rounded-xl"></div>
-        </div>
-      </div>
-    );
-  }
+  });
+  activity.forEach(a => {
+    if (!a.created_at) return;
+    const d = new Date(a.created_at);
+    const m = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth());
+    if (m) m.count++;
+  });
+  const max = Math.max(...months.map(m => m.count), 1);
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* ===== EN-TÊTE PRINCIPALE ===== */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Tableau de Bord
-            </h1>
-            {unreadCount > 0 && (
-              <span className="relative">
-                <BellAlertIcon className="w-6 h-6 text-blue-600" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              </span>
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <p style={{ fontSize: 12, color: C.textMuted }}>{t('activity_chart_desc')}</p>
+        <span style={{ fontSize: 11, fontWeight: 600 }}>
+          {t('activity_total', { count: activity.length })}
+        </span>
+      </div>
+      <div className="bar-chart">
+        {months.map((m, i) => {
+          const hPct = Math.max((m.count / max) * 100, m.count > 0 ? 5 : 0);
+          return (
+            <div key={i} className="bar-col">
+              <div style={{ fontSize: 10, fontWeight: 600, minHeight: 14 }}>{m.count || '—'}</div>
+              <div style={{ flex: 1, width: '100%' }}>
+                <div className={`bar-body ${m.count === 0 ? 'empty' : ''}`} style={{ height: `${hPct}%` }} />
+              </div>
+              <div className="bar-label">{m.label}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 12, padding: '10px 14px', background: C.surface2, borderRadius: 8 }}>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          {[{ emoji: '🗳️', key: 'votes', type: 'vote' },
+            { emoji: '📎', key: 'proofs', type: 'proof' },
+            { emoji: '💬', key: 'comments', type: 'comment' },
+            { emoji: '❓', key: 'questions_ia', type: 'question' },
+          ].map((s, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.textSub }}>
+              <span>{s.emoji}</span>
+              <span style={{ fontWeight: 600, color: C.text }}>{activity.filter(a => a.type === s.type).length}</span>
+              <span>{t(s.key)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════ NAVIGATION ═════════════════════════════════
+const NAV_ITEMS = [
+  { key: 'overview',  labelKey: 'overview',  Icon: ChartBarIcon },
+  { key: 'alerts',    labelKey: 'alerts',    Icon: BoltIcon,     notif: true },
+  { key: 'watchlist', labelKey: 'watchlist', Icon: EyeIcon },
+  { key: 'impact',    labelKey: 'impact',    Icon: ArrowTrendingUpIcon },
+  { key: 'activity',  labelKey: 'activity',  Icon: ClockIcon },
+  { key: 'insights',  labelKey: 'insights',  Icon: SparklesIcon },
+  { key: 'settings',  labelKey: 'settings',  Icon: PencilSquareIcon },
+];
+
+const MobileTabs = ({ activeTab, onTab, t }) => (
+  <div className="mobile-tabs">
+    <div className="mobile-tabs-inner">
+      {NAV_ITEMS.map(item => (
+        <button
+          key={item.key}
+          className={`mobile-tab ${activeTab === item.key ? 'active' : ''}`}
+          onClick={() => onTab(item.key)}
+        >
+          {t(item.labelKey)}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+const Sidebar = ({ activeTab, onTab, unreadCount, t }) => (
+  <aside className="sidebar">
+    <nav className="sidebar-section">
+      {NAV_ITEMS.map(({ key, labelKey, Icon, notif }) => (
+        <button
+          key={key}
+          className={`sidebar-btn ${activeTab === key ? 'active' : ''}`}
+          onClick={() => onTab(key)}
+        >
+          <Icon />
+          {t(labelKey)}
+          {notif && unreadCount > 0 && (
+            <span className="sidebar-notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+          )}
+        </button>
+      ))}
+    </nav>
+  </aside>
+);
+
+// ═══════════════ ONGLETS ═════════════════════════════════════
+
+// 1. Vue d'ensemble
+const OverviewTab = ({ personal, insights, recommendations, activity, navigate, t }) => {
+  const trustScore = personal?.user?.trust_score ? Math.round(personal.user.trust_score * 100) : 0;
+  const votes = personal?.votes || {};
+  const evidence = personal?.evidence || {};
+  const contributions = personal?.contributions || {};
+
+  const tiles = [
+    { label: t('trust_score'),         value: `${trustScore}%`, delta: t('this_month_change', { value: '+3' }), deltaType: 'up', Icon: ShieldCheckIcon },
+    { label: t('votes_submitted'),     value: votes?.total || 0, delta: t('this_month_change', { value: `+${votes?.this_month || 0}` }), deltaType: 'up', Icon: ArrowUpIcon },
+    { label: t('validated_proofs'),    value: evidence?.approved || 0, delta: t('total_submitted', { total: evidence?.total || 0 }), deltaType: 'flat', Icon: CheckCircleIcon },
+    { label: t('vote_accuracy'),       value: `${contributions?.accuracy_rate || 0}%`, delta: t('accuracy_label'), deltaType: contributions?.accuracy_rate >= 70 ? 'up' : 'flat', Icon: LightBulbIcon },
+  ];
+
+  return (
+    <div className="fade-up">
+      <div className="metrics-grid">
+        {tiles.map((tile, i) => (
+          <div key={i} className="metric-tile">
+            <div className="metric-icon"><tile.Icon style={{ width: 20, height: 20, color: C.black }} /></div>
+            <div className="metric-value">{tile.value}</div>
+            <div className="metric-label">{tile.label}</div>
+            <span className={`metric-delta ${tile.deltaType === 'up' ? 'delta-up' : tile.deltaType === 'down' ? 'delta-down' : 'delta-flat'}`}>
+              {tile.deltaType === 'up' && '↑ '}{tile.delta}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="two-col">
+        <div className="space-y">
+          <div className="card">
+            <div className="card-header">
+              <SparklesIcon style={{ width: 16, color: C.black }} />
+              <span className="card-title">{t('ia_summary_today')}</span>
+              <span className="card-badge">{new Date().toLocaleDateString('fr-FR', { day:'numeric', month:'long' })}</span>
+            </div>
+            <div style={{ padding: '16px 18px' }}>
+              <p style={{ fontSize:14, color:C.textSub, lineHeight:1.7 }}>
+                {activity?.length ? t('since_last_visit', { count: activity.length }) : t('welcome_message')}
+                {insights?.length > 0 && ' ' + t('ia_monitoring', { count: insights.length })}
+              </p>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <ClockIcon style={{ width: 16, color: C.black }} />
+              <span className="card-title">{t('last_6_months')}</span>
+            </div>
+            <div style={{ padding: '16px 18px' }}><ActivityBarChart activity={activity || []} t={t} /></div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <BoltIcon style={{ width: 16, color: C.black }} />
+              <span className="card-title">{t('latest_actions')}</span>
+              <span className="card-badge">{activity?.length || 0} {t('entries')}</span>
+            </div>
+            {activity?.length ? activity.slice(0,6).map((act,i) => {
+              const cfg = TYPE_CFG[act.type] || TYPE_CFG.vote;
+              return (
+                <div key={i} className="feed-row" onClick={() => act.claim_id && navigate(`/event/${act.claim_id}`)}>
+                  <div className="feed-icon"><ClockIcon style={{ width:16, color:C.black }} /></div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div className="feed-title">{act.claim_title || '—'}</div>
+                    <div className="feed-meta">
+                      <span className={`tag ${cfg.tag}`}>{t(cfg.labelKey)}</span>
+                      <span style={{ fontSize:11, color:C.textMuted }}>{relativeTime(act.created_at)}</span>
+                    </div>
+                  </div>
+                  <ChevronRightIcon style={{ width:14, color:C.textMuted }} />
+                </div>
+              );
+            }) : (
+              <div style={{ padding:'32px 18px', textAlign:'center', color:C.textMuted }}>{t('no_activity')}</div>
             )}
           </div>
-          
-          <div className="flex flex-wrap items-center gap-4">
-            <p className="text-gray-600">
-              Bon retour, <span className="font-semibold text-gray-900">{user?.name || 'Utilisateur'}</span>
-            </p>
-            
-            {/* Score de crédibilité */}
-            <CredibilityScore 
-              score={dashboardData.personal?.credibility_score || 0}
-              level={dashboardData.personal?.credibility_level || 'beginner'}
-              showBadge={true}
-            />
-            
-            {/* Indicateur de statut */}
-            <div className="flex items-center gap-2 text-sm">
-              <div className={`w-2 h-2 rounded-full ${
-                user?.status === 'active' ? 'bg-green-500' : 
-                user?.status === 'verified' ? 'bg-blue-500' : 
-                'bg-yellow-500'
-              }`}></div>
-              <span className="text-gray-500 capitalize">
-                {user?.status || 'standard'} • Niveau {user?.level || 1}
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        {/* Vue rapide et actions */}
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-            {['overview', 'events', 'analytics'].map((view) => (
-              <button
-                key={view}
-                onClick={() => setActiveView(view)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                  activeView === view
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {view === 'overview' ? 'Vue générale' :
-                 view === 'events' ? 'Événements' : 'Analyses'}
-              </button>
-            ))}
-          </div>
-          
-          <QuickActions 
-            userLevel={user?.level}
-            hasPendingContributions={dashboardData.personal?.pending_contributions > 0}
-          />
-        </div>
-      </div>
-
-      {/* ===== INDICATEURS CLÉS (KPIs) ===== */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Carte 1 : Événements suivis */}
-        <div className="card p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Événements suivis</p>
-              <p className="text-3xl font-bold text-gray-900">
-                {dashboardData.followedEvents.length}
-              </p>
-            </div>
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <EyeIcon className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Actifs</span>
-              <span className="font-semibold">
-                {dashboardData.followedEvents.filter(e => e.status === 'active').length}
-              </span>
-            </div>
-          </div>
         </div>
 
-        {/* Carte 2 : Contributions */}
-        <div className="card p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Contributions</p>
-              <p className="text-3xl font-bold text-gray-900">
-                {dashboardData.personal?.total_contributions || 0}
-              </p>
-            </div>
-            <div className="p-2 bg-green-100 rounded-lg">
-              <ChatBubbleLeftRightIcon className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Validées</span>
-              <span className="font-semibold text-green-600">
-                {dashboardData.personal?.validated_contributions || 0}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Carte 3 : Taux d'engagement */}
-        <div className="card p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Engagement</p>
-              <p className="text-3xl font-bold text-gray-900">
-                {derivedMetrics?.engagementRate ? `${derivedMetrics.engagementRate.toFixed(1)}%` : '0%'}
-              </p>
-            </div>
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <ArrowTrendingUpIcon className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Influence</span>
-              <span className="font-semibold">
-                {dashboardData.personal?.influence_score || 0}/100
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Carte 4 : Précision */}
-        <div className="card p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Précision moyenne</p>
-              <p className="text-3xl font-bold text-gray-900">
-                {dashboardData.personal?.accuracy_score ? `${dashboardData.personal.accuracy_score}%` : 'N/A'}
-              </p>
-            </div>
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <CheckBadgeIcon className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Classement</span>
-              <span className="font-semibold">
-                #{dashboardData.personal?.ranking || 'N/A'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ===== SECTION PRINCIPALE ===== */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Colonne gauche : Événements suivis */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* En-tête avec filtres */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <FireIcon className="w-5 h-5 text-orange-500" />
-                Événements que vous suivez
-              </h2>
-              <p className="text-gray-600 text-sm">
-                {eventsNeedingAttention.length > 0 && (
-                  <span className="text-orange-600 font-medium">
-                    {eventsNeedingAttention.length} nécessitent votre attention •
-                  </span>
-                )} Dernière mise à jour: aujourd'hui
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <select
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="bg-gray-100 text-gray-700 text-sm rounded-lg px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="active">Actifs</option>
-                <option value="resolved">Résolus</option>
-                <option value="trending">Tendances</option>
-              </select>
-              
-              <select
-                value={filters.timeRange}
-                onChange={(e) => handleFilterChange('timeRange', e.target.value)}
-                className="bg-gray-100 text-gray-700 text-sm rounded-lg px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="today">Aujourd'hui</option>
-                <option value="week">Cette semaine</option>
-                <option value="month">Ce mois</option>
-                <option value="quarter">Ce trimestre</option>
-              </select>
+        <div className="space-y">
+          <div className="card" style={{ padding:'20px 18px', textAlign:'center' }}>
+            <p style={{ fontSize:12, fontWeight:600, color:C.textSub, marginBottom:14, textTransform:'uppercase' }}>{t('citizen_score')}</p>
+            <ScoreRing pct={trustScore} size={88} color={C.black} />
+            <p style={{ fontSize:12, color:C.textMuted, marginTop:14 }}>{t('score_description')}</p>
+            <div style={{ marginTop:14, display:'flex', flexDirection:'column', gap:10 }}>
+              {[{ label: t('votes'), value: votes.total||0, max:100 },
+                { label: t('proofs_submitted'), value: evidence.total||0, max:20 },
+                { label: t('accuracy'), value: contributions.accuracy_rate||0, max:100, unit:'%' },
+              ].map((d,i) => (
+                <div key={i} style={{ textAlign:'left' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                    <span style={{ fontSize:12, color:C.textSub }}>{d.label}</span>
+                    <span style={{ fontSize:12, fontWeight:600 }}>{d.value}{d.unit||''}</span>
+                  </div>
+                  <div className="prog-track"><div className="prog-fill" style={{ width:`${Math.min((d.value/d.max)*100,100)}%`, background:C.black }} /></div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Liste des événements */}
-          <div className="grid md:grid-cols-2 gap-4">
-            {dashboardData.followedEvents.length > 0 ? (
-              dashboardData.followedEvents.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  compact={true}
-                  showUserPrediction={true}
-                  showActions={true}
-                  className={`${
-                    eventsNeedingAttention.some(e => e.id === event.id)
-                      ? 'border-l-4 border-l-orange-500'
-                      : ''
-                  }`}
-                />
-              ))
-            ) : (
-              <div className="col-span-2 bg-gray-50 rounded-xl p-8 text-center">
-                <EyeIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Vous ne suivez aucun événement
-                </h3>
-                <p className="text-gray-600 mb-4 max-w-md mx-auto">
-                  Commencez à suivre des événements pour voir leurs évolutions ici
-                </p>
-                <Link
-                  to="/explore"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                >
-                  <MagnifyingGlassIcon className="w-4 h-4" />
-                  Explorer les événements
-                </Link>
+          <div className="card">
+            <div className="card-header">
+              <FireIcon style={{ width:16, color:C.black }} />
+              <span className="card-title">{t('recommended_for_you')}</span>
+            </div>
+            {recommendations?.length ? recommendations.slice(0,4).map(c => (
+              <div key={c.id} className="claim-row" onClick={() => navigate(`/event/${c.id}`)}>
+                <div className="claim-row-title">{c.title}</div>
+                <div className="claim-row-foot">
+                  <span className={`tag ${STATUS_CFG[c.status]?.tag || 'tag-neutral'}`}>{t(STATUS_CFG[c.status]?.labelKey || 'status_unverified')}</span>
+                  {c.currentConsensus !== null && <span style={{ fontSize:12, fontWeight:700, color:c.currentConsensus>=50?C.green:C.red }}>{c.currentConsensus}%</span>}
+                </div>
               </div>
+            )) : (
+              <div style={{ padding:'24px 18px', textAlign:'center', color:C.textMuted }}>{t('no_recommendations')}</div>
             )}
-          </div>
-
-          {/* Graphiques de tendances */}
-          {dashboardData.trends && (
-            <div className="card mt-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <ChartBarIcon className="w-5 h-5" />
-                  Tendances de vos événements
-                </h3>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-gray-600">En hausse: {derivedMetrics?.trendingUp}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span className="text-gray-600">En baisse: {derivedMetrics?.trendingDown}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <DataChart
-                type="line"
-                data={dashboardData.trends.chart_data}
-                height={200}
-                options={{
-                  plugins: {
-                    tooltip: {
-                      mode: 'index',
-                      intersect: false
-                    }
-                  }
-                }}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Colonne droite : Sidebar d'activités */}
-        <div className="space-y-6">
-          {/* Section IA Insights */}
-          {dashboardData.aiInsights.length > 0 && (
-            <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <CpuChipIcon className="w-5 h-5 text-purple-600" />
-                  Insights IA
-                </h3>
-                <InformationCircleIcon className="w-5 h-5 text-gray-400" />
-              </div>
-              
-              <div className="space-y-4">
-                {dashboardData.aiInsights.slice(0, 3).map((insight, index) => (
-                  <div 
-                    key={index}
-                    className="p-3 bg-purple-50 rounded-lg border border-purple-100"
-                  >
-                    <div className="flex items-start gap-3">
-                      <LightBulbIcon className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm text-gray-900 font-medium mb-1">
-                          {insight.title}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          {insight.description}
-                        </p>
-                        <div className="mt-2 flex items-center justify-between">
-                          <span className="text-xs text-purple-600 font-medium">
-                            {insight.confidence}% de confiance
-                          </span>
-                          <button className="text-xs text-blue-600 hover:text-blue-800">
-                            Explorer →
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <button className="w-full mt-4 py-2 text-center text-sm text-blue-600 hover:text-blue-800 font-medium border-t border-gray-100 pt-3">
-                Voir tous les insights
-              </button>
-            </div>
-          )}
-
-          {/* Section Recommandations */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <StarIcon className="w-5 h-5 text-yellow-500" />
-                Recommandations pour vous
-              </h3>
-              <AdjustmentsHorizontalIcon className="w-5 h-5 text-gray-400" />
-            </div>
-            
-            <div className="space-y-3">
-              {dashboardData.recommendations.length > 0 ? (
-                dashboardData.recommendations.map((event) => (
-                  <div
-                    key={event.id}
-                    className="p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition cursor-pointer"
-                    onClick={() => navigate(`/event/${event.id}`)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 line-clamp-2">
-                          {event.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`px-2 py-0.5 text-xs rounded-full ${
-                            event.category === 'économie' ? 'bg-green-100 text-green-800' :
-                            event.category === 'éducation' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {event.category}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {event.participants} participants
-                          </span>
-                        </div>
-                      </div>
-                      <ArrowRightIcon className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="text-xs text-gray-500">
-                        Consensus: <span className="font-semibold">{event.consensus}%</span>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Logique pour suivre l'événement
-                        }}
-                        className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                      >
-                        Suivre
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-gray-500 text-sm">
-                    Plus de recommandations après plus d'activité
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Section Contributions récentes */}
-          <ActivityFeed 
-            contributions={dashboardData.contributions}
-            isLoading={loading.personal}
-          />
-
-          {/* Section Statut utilisateur */}
-          <div className="card">
-            <div className="flex items-center gap-3 mb-4">
-              <UserCircleIcon className="w-8 h-8 text-gray-600" />
-              <div>
-                <h3 className="font-bold text-gray-900">Votre progression</h3>
-                <p className="text-sm text-gray-600">
-                  Niveau {user?.level || 1} • {user?.xp || 0} XP
-                </p>
-              </div>
-            </div>
-            
-            {/* Barre de progression */}
-            <div className="mb-2">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Prochain niveau</span>
-                <span className="font-semibold">
-                  {1000 - (user?.xp || 0)} XP requis
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-green-500 h-2 rounded-full"
-                  style={{ width: `${((user?.xp || 0) % 1000) / 10}%` }}
-                ></div>
-              </div>
-            </div>
-            
-            {/* Badges */}
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-sm font-medium text-gray-900 mb-2">Badges récents</p>
-              <div className="flex gap-2">
-                {dashboardData.personal?.recent_badges?.map((badge, index) => (
-                  <div
-                    key={index}
-                    className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center"
-                    title={badge.name}
-                  >
-                    <span className="text-xs font-bold">🏆</span>
-                  </div>
-                )) || (
-                  <p className="text-sm text-gray-500">
-                    Gagnez des badges en contribuant
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ===== SECTION INFÉRIEURE ===== */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Analytics détaillées */}
-        <div className="card">
-          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <ChartPieIcon className="w-5 h-5" />
-            Analytics détaillées
-          </h3>
-          
-          <div className="space-y-6">
-            {/* Performance par catégorie */}
-            <div>
-              <h4 className="font-medium text-gray-900 mb-3">Performance par catégorie</h4>
-              <div className="space-y-2">
-                {dashboardData.personal?.category_performance?.map((cat, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                      <span className="text-sm capitalize">{cat.name}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-24 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-green-500 h-2 rounded-full"
-                          style={{ width: `${cat.accuracy}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium w-10 text-right">
-                        {cat.accuracy}%
-                      </span>
-                    </div>
-                  </div>
-                )) || (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    Données insuffisantes pour l'analyse
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions rapides et statistiques */}
-        <div className="space-y-6">
-          <div className="card">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Actions rapides</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <Link
-                to="/submit"
-                className="p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition text-center"
-              >
-                <PlusIcon className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                <p className="text-sm font-medium text-gray-900">Soumettre</p>
-              </Link>
-              
-              <Link
-                to="/collective"
-                className="p-3 bg-green-50 hover:bg-green-100 rounded-lg transition text-center"
-              >
-                <UserGroupIcon className="w-6 h-6 text-green-600 mx-auto mb-2" />
-                <p className="text-sm font-medium text-gray-900">Intelligence Collective</p>
-              </Link>
-              
-              <Link
-                to="/predictions"
-                className="p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition text-center"
-              >
-                <RocketLaunchIcon className="w-6 h-6 text-purple-600 mx-auto mb-2" />
-                <p className="text-sm font-medium text-gray-900">Prédictions</p>
-              </Link>
-              
-              <Link
-                to="/analytics"
-                className="p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition text-center"
-              >
-                <ChartBarSolid className="w-6 h-6 text-orange-600 mx-auto mb-2" />
-                <p className="text-sm font-medium text-gray-900">Analyses</p>
-              </Link>
-            </div>
-          </div>
-
-          {/* Alertes importantes */}
-          {eventsNeedingAttention.length > 0 && (
-            <div className="card border-l-4 border-l-orange-500">
-              <div className="flex items-center gap-3 mb-4">
-                <BellAlertIcon className="w-6 h-6 text-orange-600" />
-                <h3 className="text-lg font-bold text-gray-900">
-                  Nécessite votre attention
-                </h3>
-              </div>
-              
-              <div className="space-y-3">
-                {eventsNeedingAttention.slice(0, 2).map((event) => (
-                  <div
-                    key={event.id}
-                    className="p-3 bg-orange-50 rounded-lg border border-orange-100"
-                  >
-                    <p className="text-sm font-medium text-gray-900 mb-1">
-                      {event.title}
-                    </p>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-orange-700">
-                        {event.attention_reason}
-                      </span>
-                      <Link
-                        to={`/event/${event.id}`}
-                        className="text-blue-600 hover:text-blue-800 font-medium"
-                      >
-                        Vérifier
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-                
-                {eventsNeedingAttention.length > 2 && (
-                  <Link
-                    to="/alerts"
-                    className="block text-center text-sm text-blue-600 hover:text-blue-800 font-medium pt-3 border-t border-orange-100"
-                  >
-                    Voir les {eventsNeedingAttention.length - 2} autres alertes
-                  </Link>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ===== PIED DE PAGE DU DASHBOARD ===== */}
-      <div className="pt-6 border-t border-gray-200">
-        <div className="flex flex-col md:flex-row md:items-center justify-between text-sm text-gray-500">
-          <div className="flex items-center gap-4">
-            <span>• Données mises à jour il y a moins de 5 minutes</span>
-            <span>• Serveur: <span className="text-green-600">● En ligne</span></span>
-          </div>
-          <div className="flex items-center gap-4 mt-2 md:mt-0">
-            <Link to="/privacy" className="hover:text-gray-700">
-              Confidentialité
-            </Link>
-            <Link to="/help" className="hover:text-gray-700">
-              Aide
-            </Link>
-            <Link to="/feedback" className="hover:text-gray-700">
-              Donner mon avis
-            </Link>
           </div>
         </div>
       </div>
@@ -1048,21 +682,498 @@ const DashboardPage = () => {
   );
 };
 
-// Composant PlusIcon manquant
-const PlusIcon = ({ className = "w-6 h-6" }) => (
-  <svg 
-    className={className} 
-    fill="none" 
-    stroke="currentColor" 
-    viewBox="0 0 24 24"
-  >
-    <path 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      strokeWidth={2} 
-      d="M12 4v16m8-8H4" 
-    />
-  </svg>
+// 2. Alertes & signaux
+const AlertsTab = ({ followedEvents, insights, navigate, t }) => {
+  const [filter, setFilter] = useState('all');
+  const allSignals = [
+    ...followedEvents.filter(e => e.attention_flag).map(e => ({
+      type:'urgent', emoji:'🚨', title:e.title,
+      detail: t('alert_claim_change', { consensus: e.currentConsensus ?? t('no_vote') }),
+      tag: t('alert_needs_attention'), tagClass:'tag-red', route:`/event/${e.id}`,
+    })),
+    ...(insights || []).map(ins => ({
+      type:'ia', emoji:'🧠', title:ins.title,
+      detail: t('alert_ia_confidence', { confidence: ins.confidence, category: ins.category }),
+      tag: t('alert_ia_analysis'), tagClass:'tag-blue',
+    })),
+    ...followedEvents.filter(e => !e.attention_flag).slice(0,5).map(e => ({
+      type:'update', emoji:'📊', title:e.title,
+      detail: t('alert_update', { votes: e.participants?.toLocaleString()||0, status: t(STATUS_CFG[e.status]?.labelKey || 'status_unverified') }),
+      tag: t('alert_update_label'), tagClass:'tag-neutral', route:`/event/${e.id}`,
+    })),
+  ];
+
+  const shown = filter === 'all' ? allSignals : allSignals.filter(s => s.type === filter);
+  const FILTERS = ['all','urgent','ia','update'];
+
+  return (
+    <div className="fade-up">
+      <div style={{ marginBottom:16, padding:'14px 18px', background:C.surface, borderRadius:10, border:`1px solid ${C.border}` }}>
+        <p style={{ fontSize:13, color:C.textSub, lineHeight:1.6 }}>
+          <strong style={{ color:C.text }}>{t('alerts_signals')}</strong> — {t('alerts_description')}
+        </p>
+      </div>
+      <div className="tabs">
+        {FILTERS.map(f => (
+          <button key={f} className={`tab ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
+            {f === 'all' ? t('all') : f === 'urgent' ? `🚨 ${t('urgent')}` : f === 'ia' ? `🧠 ${t('ia')}` : `📊 ${t('updates')}`}
+          </button>
+        ))}
+      </div>
+      <div className="card">
+        <div className="card-header">
+          <BoltIcon style={{ width:16, color:C.black }} />
+          <span className="card-title">{t('active_signals')}</span>
+          <span className="card-badge">{shown.length} {t('result', { count: shown.length })}</span>
+        </div>
+        {shown.length ? shown.map((s,i) => (
+          <div key={i} className="feed-row" onClick={() => s.route && navigate(s.route)}>
+            <div className="feed-icon" style={{ fontSize:16 }}>{s.emoji}</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div className="feed-title">{s.title}</div>
+              <div className="feed-meta">
+                <span className={`tag ${s.tagClass}`}>{s.tag}</span>
+                <span style={{ fontSize:11, color:C.textMuted }}>{s.detail}</span>
+              </div>
+            </div>
+            {s.route && <ChevronRightIcon style={{ width:14, color:C.textMuted }} />}
+          </div>
+        )) : (
+          <div style={{ padding:'40px 18px', textAlign:'center' }}>
+            <BellIcon style={{ width:32, margin:'0 auto 10px', display:'block', color:C.textMuted, opacity:0.4 }} />
+            <p style={{ color:C.textMuted }}>{t('no_signals')}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// 3. Claims surveillés
+const WatchlistTab = ({ followedEvents, navigate, t }) => {
+  const urgent = followedEvents.filter(e => e.attention_flag);
+  const normal = followedEvents.filter(e => !e.attention_flag);
+
+  return (
+    <div className="fade-up space-y">
+      {urgent.length > 0 && (
+        <div style={{ background:C.redBg, border:`1px solid ${C.redBorder}`, borderLeft:`4px solid ${C.red}`, borderRadius:10, padding:'14px 18px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+            <BoltIcon style={{ width:16, color:C.red }} />
+            <strong style={{ color:C.red }}>{t('urgent_claims_changed', { count: urgent.length })}</strong>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px,1fr))', gap:10 }}>
+            {urgent.map(e => (
+              <div key={e.id} className="card" style={{ cursor:'pointer', border:`1px solid ${C.redBorder}` }} onClick={() => navigate(`/event/${e.id}`)}>
+                <div style={{ padding:'12px 14px' }}>
+                  <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>{e.title}</div>
+                  <div style={{ display:'flex', justifyContent:'space-between' }}>
+                    <span className="tag tag-red">{t('attention_required')}</span>
+                    {e.currentConsensus !== null && <span style={{ fontSize:12, fontWeight:700 }}>{e.currentConsensus}%</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="card-header">
+          <EyeIcon style={{ width:16, color:C.black }} />
+          <span className="card-title">{t('watchlist')}</span>
+          <span className="card-badge">{followedEvents.length} {t('total')}</span>
+          <button className="btn-outline" style={{ marginLeft:'auto' }} onClick={() => navigate('/')}>
+            + {t('follow_new_claim')}
+          </button>
+        </div>
+        {followedEvents.length ? [...urgent, ...normal].map(e => (
+          <div key={e.id} className="claim-row" onClick={() => navigate(`/event/${e.id}`)}>
+            <div className="claim-row-title">{e.title}</div>
+            <div className="claim-row-foot">
+              <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                {e.attention_flag && <span className="tag tag-red">{t('changed')}</span>}
+                <span className={`tag ${STATUS_CFG[e.status]?.tag || 'tag-neutral'}`}>
+                  {t(STATUS_CFG[e.status]?.labelKey || 'status_unverified')}
+                </span>
+                <span style={{ fontSize:11, color:C.textMuted }}>{e.participants?.toLocaleString()} {t('votes')}</span>
+              </div>
+              {e.currentConsensus !== null && (
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4, minWidth:60 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:e.currentConsensus>=50?C.green:C.red }}>{e.currentConsensus}%</span>
+                  <div className="prog-track" style={{ width:60 }}>
+                    <div className="prog-fill" style={{ width:`${e.currentConsensus}%`, background:e.currentConsensus>=50?C.green:C.red }} />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )) : (
+          <div style={{ padding:'40px 18px', textAlign:'center' }}>
+            <EyeIcon style={{ width:32, margin:'0 auto 10px', display:'block', color:C.textMuted, opacity:0.4 }} />
+            <p style={{ color:C.textMuted, marginBottom:14 }}>{t('no_followed_claims')}</p>
+            <button className="btn-black" onClick={() => navigate('/')}>{t('explore_claims')}</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// 4. Mon impact (avec grille responsive)
+const ImpactTab = ({ personal, t }) => {
+  const { user, votes={}, comments={}, evidence={}, contributions={} } = personal || {};
+  const trustScore = user?.trust_score ? Math.round(user.trust_score * 100) : 0;
+  const badges = [
+    { earned: (votes.total||0)>0,              label: t('badge_first_vote'),       emoji:'🗳️', desc: t('badge_first_vote_desc') },
+    { earned: (evidence.total||0)>0,           label: t('badge_first_proof'),      emoji:'📎', desc: t('badge_first_proof_desc') },
+    { earned: (comments.total||0)>0,           label: t('badge_active_contributor'), emoji:'💬', desc: t('badge_active_contributor_desc') },
+    { earned: (contributions.accuracy_rate||0)>70, label: t('badge_accuracy_analyst'), emoji:'🎯', desc: t('badge_accuracy_analyst_desc') },
+    { earned: (votes.total||0)>=10,            label: t('badge_engaged_citizen'),   emoji:'⚡', desc: t('badge_engaged_citizen_desc') },
+    { earned: trustScore>=75,                  label: t('badge_reliable_voice'),    emoji:'🏆', desc: t('badge_reliable_voice_desc') },
+  ];
+
+  return (
+    <div className="fade-up space-y">
+      <div className="impact-stats-grid">
+        {[ 
+          { label:t('votes'), value:votes.total||0, sub:t('this_month',{count:votes.this_month||0}) },
+          { label:t('comments'), value:comments.total||0, sub:t('helpful',{count:comments.helpful||0}) },
+          { label:t('proofs'), value:evidence.total||0, sub:t('approved',{count:evidence.approved||0}) },
+          { label:t('accuracy'), value:`${contributions.accuracy_rate||0}%`, sub:t('predictions') },
+          { label:t('trust_score'), value:`${trustScore}%`, sub:t('community_reputation') },
+          { label:t('rank'), value:`#${user?.rank||'—'}`, sub:t('global_ranking') },
+        ].map((s,i) => (
+          <div key={i} className="metric-tile">
+            <div className="metric-value" style={{ fontSize:22 }}>{s.value}</div>
+            <div className="metric-label">{s.label}</div>
+            <span className="metric-delta delta-flat">{s.sub}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <span style={{ fontSize:15 }}>🏅</span>
+          <span className="card-title">{t('badges_earned')}</span>
+          <span className="card-badge">{badges.filter(b=>b.earned).length}/{badges.length}</span>
+        </div>
+        <div style={{ padding:'16px 18px', display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:10 }}>
+          {badges.map((b,i) => (
+            <div key={i} style={{
+              padding:'12px 14px', borderRadius:10,
+              border:`1px solid ${b.earned?C.borderDark:C.border}`,
+              background:b.earned?C.surface:'',
+              opacity:b.earned?1:0.45,
+              display:'flex', alignItems:'flex-start', gap:10
+            }}>
+              <span style={{ fontSize:22 }}>{b.emoji}</span>
+              <div>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:3 }}>{b.label}</div>
+                <div style={{ fontSize:11, color:C.textMuted }}>{b.desc}</div>
+                {b.earned && (
+                  <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:6 }}>
+                    <CheckCircleIcon style={{ width:12, color:C.green }} />
+                    <span style={{ fontSize:11, color:C.green, fontWeight:600 }}>{t('earned')}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 5. Mon activité
+const ActivityTab = ({ activity, navigate, t }) => {
+  const [filter, setFilter] = useState('all');
+  const safe = Array.isArray(activity) ? activity : [];
+  const shown = filter === 'all' ? safe : safe.filter(a => a.type === filter);
+
+  return (
+    <div className="fade-up">
+      <div className="tabs">
+        {[
+          { key:'all',     label: t('all') },
+          { key:'vote',    label: `🗳️ ${t('votes')}` },
+          { key:'proof',   label: `📎 ${t('proofs')}` },
+          { key:'comment', label: `💬 ${t('comments')}` },
+          { key:'question',label: `❓ ${t('questions_ia')}` },
+        ].map(f => (
+          <button key={f.key} className={`tab ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>{f.label}</button>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <ClockIcon style={{ width:16, color:C.black }} />
+          <span className="card-title">{t('activity_history')}</span>
+          <span className="card-badge">{shown.length} {t('actions')}</span>
+        </div>
+        {shown.length ? shown.map((act,i) => {
+          const cfg = TYPE_CFG[act.type] || TYPE_CFG.vote;
+          return (
+            <div key={i} className="feed-row" onClick={() => act.claim_id && navigate(`/event/${act.claim_id}`)}>
+              <div className="feed-icon" style={{ fontSize:14 }}>{cfg.emoji}</div>
+              <div style={{ flex:1 }}>
+                <div className="feed-title">{act.claim_title || '—'}</div>
+                <div className="feed-meta">
+                  <span className={`tag ${cfg.tag}`}>{t(cfg.labelKey)}</span>
+                  <span style={{ fontSize:11, color:C.textMuted }}>{relativeTime(act.created_at)}</span>
+                </div>
+              </div>
+              <ChevronRightIcon style={{ width:14, color:C.textMuted }} />
+            </div>
+          );
+        }) : (
+          <div style={{ padding:'40px 18px', textAlign:'center' }}>
+            <ClockIcon style={{ width:32, margin:'0 auto 10px', display:'block', color:C.textMuted, opacity:0.4 }} />
+            <p>{t('no_actions')}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// 6. Analyses IA
+const InsightsTab = ({ insights, t }) => (
+  <div className="fade-up">
+    <div style={{ marginBottom:16, padding:'14px 18px', background:C.blueBg, borderRadius:10, border:`1px solid ${C.blueBorder}` }}>
+      <p style={{ fontSize:13, color:C.textSub, lineHeight:1.6 }}>
+        <strong style={{ color:C.text }}>{t('ai_analysis')}</strong> — {t('ai_analysis_desc')}
+      </p>
+    </div>
+    <div className="card">
+      <div className="card-header">
+        <SparklesIcon style={{ width:16, color:C.black }} />
+        <span className="card-title">{t('detected_signals')}</span>
+        <span className="card-badge">{insights?.length||0} {t('analyses')}</span>
+      </div>
+      {insights?.length ? insights.map((ins,i) => (
+        <div key={i} className="feed-row" style={{ cursor:'default', alignItems:'flex-start' }}>
+          <div style={{ minWidth:64, textAlign:'center' }}>
+            <div style={{ fontSize:22, fontWeight:700, fontFeatureSettings:'"tnum"', color:ins.confidence>=80?C.green:ins.confidence>=60?C.amber:C.red }}>
+              {ins.confidence}%
+            </div>
+            <div style={{ fontSize:10, color:C.textMuted, marginBottom:4 }}>{t('confidence')}</div>
+            <div className="prog-track">
+              <div className="prog-fill" style={{ width:`${ins.confidence}%`, background:ins.confidence>=80?C.green:ins.confidence>=60?C.amber:C.red }} />
+            </div>
+          </div>
+          <div style={{ flex:1 }}>
+            <div style={{ display:'flex', gap:6, marginBottom:6, flexWrap:'wrap' }}>
+              <span className="tag tag-blue">{ins.category}</span>
+              {ins.impact_level==='high' && <span className="tag tag-red">{t('high_impact')}</span>}
+            </div>
+            <div style={{ fontSize:14, fontWeight:600, marginBottom:4 }}>{ins.title}</div>
+            <div style={{ fontSize:13, color:C.textSub, lineHeight:1.6 }}>{ins.description}</div>
+            {ins.sources_count && (
+              <div style={{ fontSize:11, color:C.textMuted, marginTop:8 }}>
+                {t('based_on_sources', { count: ins.sources_count })}
+              </div>
+            )}
+          </div>
+        </div>
+      )) : (
+        <div style={{ padding:'40px 18px', textAlign:'center' }}>
+          <LightBulbIcon style={{ width:32, margin:'0 auto 10px', display:'block', color:C.textMuted, opacity:0.4 }} />
+          <p style={{ color:C.textMuted }}>{t('no_analysis')}</p>
+        </div>
+      )}
+    </div>
+  </div>
 );
+
+// 7. Paramètres
+const SettingsTab = ({ user, t }) => {
+  const [notifClaims, setNotifClaims] = useState(true);
+  const [notifWeekly, setNotifWeekly] = useState(false);
+  const [notifAI, setNotifAI] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2200); };
+
+  return (
+    <div className="fade-up" style={{ maxWidth:600, margin:'0 auto', display:'flex', flexDirection:'column', gap:24 }}>
+      <section className="card">
+        <div className="card-header">
+          <UserCircleIcon style={{ width:18, color:C.black }} />
+          <span className="card-title">{t('profile_info')}</span>
+        </div>
+        <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:14 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div><label className="inp-label">{t('username')}</label><input type="text" defaultValue={user?.username||''} className="inp" /></div>
+            <div><label className="inp-label">{t('email')}</label><input type="email" defaultValue={user?.email||''} className="inp" /></div>
+          </div>
+          <div><label className="inp-label">{t('department')}</label><input type="text" defaultValue={user?.department||''} className="inp" /></div>
+          <button className="btn-black" onClick={handleSave}>{saved ? '✓ '+t('saved') : t('save_changes')}</button>
+        </div>
+      </section>
+      <section className="card">
+        <div className="card-header">
+          <KeyIcon style={{ width:18, color:C.black }} />
+          <span className="card-title">{t('change_password')}</span>
+        </div>
+        <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:12 }}>
+          <input type="password" placeholder={t('current_password')} className="inp" />
+          <input type="password" placeholder={t('new_password')} className="inp" />
+          <input type="password" placeholder={t('confirm_new_password')} className="inp" />
+          <button className="btn-gray">{t('update_password')}</button>
+        </div>
+      </section>
+      <section className="card">
+        <div className="card-header">
+          <BellIcon style={{ width:18, color:C.black }} />
+          <span className="card-title">{t('notification_prefs')}</span>
+        </div>
+        <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:16 }}>
+          {[
+            { label: t('notif_claims_change'), value: notifClaims, set: setNotifClaims },
+            { label: t('notif_weekly_summary'), value: notifWeekly, set: setNotifWeekly },
+            { label: t('notif_ai_analysis'), value: notifAI, set: setNotifAI },
+          ].map((n,i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <span style={{ fontSize:14, color:C.textSub }}>{n.label}</span>
+              <Toggle value={n.value} onChange={n.set} />
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="card" style={{ borderColor:C.redBorder }}>
+        <div className="card-header" style={{ borderColor:C.redBorder }}>
+          <TrashIcon style={{ width:18, color:C.red }} />
+          <span className="card-title" style={{ color:C.red }}>{t('danger_zone')}</span>
+        </div>
+        <div style={{ padding:'16px 18px' }}>
+          <p style={{ fontSize:14, color:C.textMuted, marginBottom:14 }}>{t('delete_warning')}</p>
+          <button className="btn-outline" style={{ color:C.red, borderColor:C.redBorder }} onClick={() => setShowDeleteModal(true)}>
+            {t('delete_account')}
+          </button>
+        </div>
+      </section>
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginBottom:12 }}>{t('confirm_delete_title')}</h3>
+            <p style={{ color:C.textSub, marginBottom:20 }}>{t('confirm_delete_message')}</p>
+            <div style={{ display:'flex', gap:12, justifyContent:'flex-end' }}>
+              <button className="btn-gray" onClick={() => setShowDeleteModal(false)}>{t('cancel')}</button>
+              <button className="btn-black" style={{ background:C.red }} onClick={() => { /* TODO: delete account */ }}>{t('confirm_delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════ SKELETON ════════════════════════════════════
+const DashSkeleton = () => (
+  <div className="dash">
+    <style>{CSS}</style>
+    <div className="mobile-tabs"><div style={{ padding:12 }}><Sk w={120} h={28} /></div></div>
+    <div className="dash-layout">
+      <aside className="sidebar">
+        <div className="sidebar-section" style={{ display:'flex', flexDirection:'column', gap:6 }}>
+          {[...Array(7)].map((_,i)=><Sk key={i} h={34} />)}
+        </div>
+      </aside>
+      <div className="main-content">
+        <div className="metrics-grid">{[...Array(4)].map((_,i)=><Sk key={i} h={100} />)}</div>
+        <div className="two-col">
+          <div className="space-y"><Sk h={80} /><Sk h={160} /><Sk h={200} /></div>
+          <div className="space-y"><Sk h={200} /><Sk h={180} /></div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ═══════════════ PAGE PRINCIPALE ═════════════════════════════
+const DashboardPage = () => {
+  const { t } = useTranslation('dashboard');
+  const { user, unreadCount } = useAuth();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [data, setData] = useState({
+    personal: null, followedEvents: [], recommendations: [], aiInsights: [], activity: [],
+  });
+
+  // Transition pour changer d'onglet sans erreur de suspension synchrone
+  const handleTabChange = (tab) => {
+    startTransition(() => {
+      setActiveTab(tab);
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchData = async () => {
+      try {
+        const [pR, iR, fR, rR] = await Promise.allSettled([
+          dashboardAPI.getPersonalDashboard(),
+          dashboardAPI.getAIInsights(),
+          eventsAPI.getFollowedEvents(),
+          eventsAPI.getRecommendedEvents(),
+        ]);
+        if (cancelled) return;
+        const ex = (r, fb) => r.status === 'fulfilled' ? (r.value?.data ?? fb) : fb;
+        const personal = ex(pR, {})?.dashboard || ex(pR, {});
+        const aiInsights = ex(iR, {})?.insights || [];
+        const followedEvents = ensureArray(ex(fR, [])).map(normalizeClaim);
+        const recommendations = ensureArray(ex(rR, [])).map(normalizeClaim);
+        setData({ personal, aiInsights, followedEvents, recommendations, activity: personal?.recent_activity || [] });
+      } catch {
+        if (!cancelled) setError(t('load_error'));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchData();
+    return () => { cancelled = true; };
+  }, [t]);
+
+  if (loading) return <DashSkeleton />;
+  if (error) return (
+    <div className="dash" style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh' }}>
+      <style>{CSS}</style>
+      <div style={{ textAlign:'center' }}>
+        <ExclamationTriangleIcon style={{ width:40, color:C.red, marginBottom:14 }} />
+        <p style={{ color:C.textSub, marginBottom:16 }}>{error}</p>
+        <button className="btn-black" onClick={() => window.location.reload()}>{t('retry')}</button>
+      </div>
+    </div>
+  );
+
+  const personal = data.personal || {};
+  const u = user || personal.user || {};
+
+  return (
+    <div className="dash">
+      <style>{CSS}</style>
+      <MobileTabs activeTab={activeTab} onTab={handleTabChange} t={t} />
+      <div className="dash-layout">
+        <Sidebar activeTab={activeTab} onTab={handleTabChange} unreadCount={unreadCount||0} t={t} />
+        <main className="main-content">
+          <React.Suspense fallback={<DashSkeleton />}>
+            {activeTab === 'overview'  && <OverviewTab   personal={personal} insights={data.aiInsights} recommendations={data.recommendations} activity={data.activity} navigate={navigate} t={t} />}
+            {activeTab === 'alerts'    && <AlertsTab     followedEvents={data.followedEvents} insights={data.aiInsights} navigate={navigate} t={t} />}
+            {activeTab === 'watchlist' && <WatchlistTab  followedEvents={data.followedEvents} navigate={navigate} t={t} />}
+            {activeTab === 'impact'    && <ImpactTab     personal={personal} t={t} />}
+            {activeTab === 'activity'  && <ActivityTab   activity={data.activity} navigate={navigate} t={t} />}
+            {activeTab === 'insights'  && <InsightsTab   insights={data.aiInsights} t={t} />}
+            {activeTab === 'settings'  && <SettingsTab   user={u} t={t} />}
+          </React.Suspense>
+        </main>
+      </div>
+    </div>
+  );
+};
 
 export default DashboardPage;

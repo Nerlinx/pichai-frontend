@@ -33,5 +33,6 @@
   "education": "Éducation",
   "energy": "Énergie (EDH)",
   "roads_transport": "Routes & transport",
-  "water_sanitation": "Eau & assainissement"
+  "water_sanitation": "Eau & assainissement",
+  "dashboard.my_impact" : "Mon impact"
 }

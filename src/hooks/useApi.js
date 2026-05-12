@@ -1,6 +1,6 @@
 // hooks/useApi.js
 import { useState, useEffect, useCallback } from 'react';
-import { 
+import api, { 
   eventsAPI, 
   dashboardAPI, 
   userAPI, 
@@ -38,61 +38,56 @@ export const useEvents = (options = {}) => {
   // ─────────────────────────────────────────────
   // 📦 FETCH EVENTS
   // ─────────────────────────────────────────────
-  const fetchEvents = useCallback(async () => {
+ const fetchEvents = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = { limit };
-      if (category !== 'all') {
-        params.category = category;
-      }
-      
-      const response = await eventsAPI.getActiveEvents(params);
+      if (category !== 'all') params.category = category;
 
-      // ⚠️ IMPORTANT: api.js retourne déjà des events NORMALISÉS
-      const eventsData = response.data?.events || [];
+      // ── Appels parallèles events + stats globales ──────────────
+      const [response, statsRes] = await Promise.all([
+        eventsAPI.getActiveEvents(params),
+        api.get('/api/v1/claims/stats').catch(() => ({ data: {} })),  // ← NOUVEAU
+      ]);
 
-      // 👉 On ne casse pas le travail de normalizeClaim
+      const eventsData  = response.data?.events || [];
+      const globalStats = statsRes.data || {};                         // ← NOUVEAU
+
       const safeEvents = eventsData.map(event => ({
         ...event,
-
-        // 🔒 Sécuriser category
-        category: getCategoryName(event.category),
-
-        // 🔒 Sécuriser description
-        description: event.description || '',
-
-        // 🔒 Sécuriser participants
+        category    : getCategoryName(event.category),
+        description : event.description || '',
         participants: event.participants || 0,
-
-        // 🔒 Impact score sécurisé
-        impactScore: calculateImpactScore(event),
+        impactScore : calculateImpactScore(event),
       }));
 
       setEvents(safeEvents);
 
-      // ─── STATS ────────────────────────────────
       if (safeEvents.length > 0) {
-        const totalParticipants = safeEvents.reduce((sum, e) => sum + e.participants, 0);
+        // participants = somme des votes par claim (comme avant)
+        // MAIS on remplace par unique_participants du backend si disponible
+        const totalParticipants = globalStats.unique_participants
+          ?? safeEvents.reduce((sum, e) => sum + e.participants, 0);
 
         const averageConsensus = Math.round(
           safeEvents.reduce((sum, e) => sum + (e.currentConsensus || 0), 0) / safeEvents.length
         );
 
-        const urgentCount = safeEvents.filter(e => e.status === 'urgent').length;
-        
         setStats({
-          total: safeEvents.length,
-          totalParticipants,
+          total             : safeEvents.length,
+          totalParticipants : globalStats.unique_participants              // ← users uniques du backend
+            ?? safeEvents.reduce((sum, e) => sum + e.participants, 0),    // ← fallback si /stats échoue
           averageConsensus,
-          urgentCount,
+          urgentCount       : safeEvents.filter(e => e.status === 'urgent').length,
+          votes_this_month  : globalStats.votes_this_month ?? 0,
+          ai_precision      : globalStats.ai_precision     ?? 0,
         });
       }
 
     } catch (err) {
       setError(err.message || 'Erreur lors du chargement des événements');
-      console.error('useEvents error:', err);
     } finally {
       setLoading(false);
     }
@@ -134,20 +129,23 @@ export const useEvents = (options = {}) => {
   // ─────────────────────────────────────────────
   const submitVote = useCallback(async (eventId, vote) => {
     try {
-      const predictionData = {
-        vote,
-        confidence_level: 0.7,
-        reasoning: vote === 'yes'
-          ? 'Je pense que cela va se produire'
-          : 'Je ne pense pas que cela va se produire',
-      };
-      
-      await eventsAPI.submitPrediction(eventId, predictionData);
+      const predictionData = { vote, confidence_level: 0.7, reasoning: vote === 'yes' ? 'Je pense que cela va se produire' : 'Je ne pense pas que cela va se produire' };
+      const res = await eventsAPI.submitClaimVote(eventId, predictionData);
+
+      // ── Si vote anonyme → sauvegarder en localStorage ──────
+      if (res?.data?.anonymous === true) {
+        const pending = JSON.parse(localStorage.getItem('pending_votes') || '[]');
+        const already = pending.find(v => v.claim_id === eventId);
+        if (!already) {
+          pending.push({ claim_id: eventId, value: vote === 'yes' ? 'probable' : 'improbable' });
+          localStorage.setItem('pending_votes', JSON.stringify(pending));
+        }
+      }
+
       await fetchEvents();
-      
       return true;
     } catch (err) {
-      console.error('Erreur lors du vote:', err);
+      // console.error('Erreur lors du vote:', err);
       return false;
     }
   }, [fetchEvents]);
@@ -184,7 +182,7 @@ export const useCategories = () => {
 
       const response = await categoriesAPI.getAllCategories();
 
-      console.log("CATEGORIES RAW:", response);
+      // console.log("CATEGORIES RAW:", response);
 
       // 🔥 SAFE EXTRACTION (important)
       const categoriesData =

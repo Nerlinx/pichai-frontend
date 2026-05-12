@@ -1,34 +1,22 @@
 import { claimAnonymousVotes } from '../services/voteService';
 import React, { useState } from 'react';
+import { useUser } from '../hooks/useUser';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  EnvelopeIcon, 
-  LockClosedIcon, 
-  EyeIcon, 
-  EyeSlashIcon,
-  ShieldCheckIcon,
-} from '@heroicons/react/24/outline';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://10.236.42.100:8000';
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    rememberMe: false
-  });
-  const [showPassword, setShowPassword] = useState(false);
+  const { login } = useUser();
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // ============ CONNEXION RÉELLE ============
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setErrors({});
 
-    // Validation côté client
     const newErrors = {};
     if (!formData.email) newErrors.email = "L'email est requis";
     if (!formData.password) newErrors.password = 'Le mot de passe est requis';
@@ -39,55 +27,26 @@ const LoginPage = () => {
     }
 
     try {
-      // Appel réel à votre backend FastAPI
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
+      const result = await login(formData);
 
-      const data = await response.json();
+      if (!result.success) {
+        setErrors({
+          general: result.error || 'Identifiants incorrects',
+        });
 
-      if (!response.ok) {
-        // Gestion des erreurs backend (401, 400, etc.)
-        setErrors({ general: data.detail || 'Identifiants incorrects' });
+        setIsLoading(false);
         return;
       }
 
-      // Stockage du token
-      const storage = localStorage; // Toujours localStorage — rememberMe gère juste la durée
-      storage.setItem('access_token', data.access_token);
-      // Associer les votes anonymes au compte connecté
       claimAnonymousVotes().then(r => {
-        if (r.claimed > 0) console.log(`[Login] ${r.claimed} vote(s) associé(s)`);
-      });
-      storage.setItem('token_type', data.token_type);
-
-      // Récupérer les infos de l'utilisateur connecté
-      const meResponse = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
-        headers: { Authorization: `Bearer ${data.access_token}` },
-      });
-
-      // Si /me n'existe pas encore, on décode les roles depuis le token JWT
-      let roles = [];
-      if (meResponse.ok) {
-        const meData = await meResponse.json();
-        roles = meData.roles || [];
-        storage.setItem('user', JSON.stringify(meData));
-      } else {
-        // Décoder le JWT manuellement pour extraire les rôles
-        try {
-          const payload = JSON.parse(atob(data.access_token.split('.')[1]));
-          roles = payload.roles || [];
-        } catch {
-          roles = [];
+        if (r.claimed > 0) {
+          // console.log(`[Login] ${r.claimed} contribution(s) récupérée(s)`);
         }
-      }
+      });
 
-      // ============ REDIRECTION PAR RÔLE ============
+      const userData = result.user || {};
+      const roles = userData.roles || [];
+
       if (roles.includes('admin') || roles.includes('superadmin')) {
         navigate('/admin/dashboard');
       } else if (roles.includes('moderator')) {
@@ -97,162 +56,101 @@ const LoginPage = () => {
       }
 
     } catch (error) {
-      // Erreur réseau / serveur non disponible
-      setErrors({ general: 'Impossible de contacter le serveur. Vérifiez votre connexion.' });
-    } finally {
-      setIsLoading(false);
+      setErrors({
+        general: 'Impossible de contacter le serveur. Vérifiez votre connexion.',
+      });
     }
   };
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  const handleSocialLogin = (provider) => {
-    // À intégrer selon votre provider OAuth
-    console.log(`Login avec ${provider}`);
-  };
+  const LockIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+      className="w-4 h-4 text-gray-400">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-xl border border-gray-200 p-8">
+    <div className="w-full max-w-sm mx-auto">
+      <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm">
+        <div className="text-center mb-6">
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-800 leading-tight">
+            Participez aux sujets qui comptent
+          </h1>
+          <p className="text-sm text-gray-500 mt-2">Analysez avec l’appui de l’IA</p>
+          <p className="text-xs text-gray-400 mt-2">Retrouvez vos contributions après connexion</p>
+        </div>
 
-            {/* En-tête */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-4">
-                <ShieldCheckIcon className="w-6 h-6 text-gray-700" />
-              </div>
-              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-                Connexion à votre compte
-              </h1>
-              <p className="text-gray-600 text-sm">
-                Accédez à votre espace personnel d'analyse
-              </p>
-            </div>
+        {errors.general && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-700 text-center">{errors.general}</p>
+          </div>
+        )}
 
-            {/* Erreur générale */}
-            {errors.general && (
-              <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-700 text-center">{errors.general}</p>
-              </div>
-            )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <input
+              type="email" name="email" value={formData.email} onChange={handleChange}
+              placeholder="Votre email" autoComplete="email"
+              className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 transition-all duration-200 ${
+                errors.email ? 'border-red-400' : 'border-gray-300'
+              }`}
+            />
+            {errors.email && <p className="mt-1 text-sm text-red-600 text-center">{errors.email}</p>}
+          </div>
 
-            {/* Formulaire */}
-            <form onSubmit={handleSubmit} className="space-y-6">
-
-              {/* Email */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Adresse email
-                </label>
-                <div className="relative">
-                  <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 ${
-                      errors.email ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="vous@exemple.com"
-                    autoComplete="email"
-                  />
-                </div>
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                )}
-              </div>
-
-              {/* Mot de passe */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Mot de passe
-                  </label>
-                  <Link to="/mot-de-passe-oublie" className="text-sm text-blue-600 hover:text-blue-800">
-                    Mot de passe oublié ?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <LockClosedIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 ${
-                      errors.password ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="Votre mot de passe"
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-                )}
-              </div>
-
-              {/* Remember me */}
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="rememberMe"
-                  checked={formData.rememberMe}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-gray-700 border-gray-300 rounded focus:ring-gray-400"
-                />
-                <label className="ml-2 text-sm text-gray-700">
-                  Se souvenir de moi
-                </label>
-              </div>
-
-              {/* Bouton submit */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-gray-900 text-white py-3 rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium flex items-center justify-center gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Connexion en cours...
-                  </>
-                ) : (
-                  'Se connecter'
-                )}
-              </button>
-            </form>
-
-            {/* Lien inscription */}
-            <div className="text-center pt-6 border-t border-gray-200">
-              <p className="text-gray-600 text-sm">
-                Vous n'avez pas de compte ?{' '}
-                <Link to="/inscription" className="text-blue-600 hover:text-blue-800 font-medium">
-                  S'inscrire maintenant
-                </Link>
-              </p>
+          <div>
+            <input
+              type="password" name="password" value={formData.password} onChange={handleChange}
+              placeholder="Votre mot de passe" autoComplete="current-password"
+              className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 transition-all duration-200 ${
+                errors.password ? 'border-red-400' : 'border-gray-300'
+              }`}
+            />
+            {errors.password && <p className="mt-1 text-sm text-red-600 text-center">{errors.password}</p>}
+            <div className="mt-1 text-right">
+              <Link to="/mot-de-passe-oublie" className="text-xs text-gray-400 hover:text-gray-600 underline">
+                Mot de passe oublié ?
+              </Link>
             </div>
           </div>
 
+          <button
+            type="submit" disabled={isLoading}
+            className="w-full bg-stone-700 text-white py-2 rounded-full hover:bg-stone-800 disabled:opacity-60 transition-all duration-200 font-medium flex items-center justify-center gap-2 transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            {isLoading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Accès en cours...
+              </>
+            ) : (
+              'Accéder à mon espace'
+            )}
+          </button>
+        </form>
+
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-400">
+            Pas encore de compte ?{' '}
+            <Link to="/inscription" className="text-stone-700 font-medium hover:underline">
+              Créer un compte
+            </Link>
+          </p>
         </div>
-      </main>
+      </div>
+
+      <div className="flex items-center justify-center gap-2 text-xs text-gray-400 mt-6">
+        <LockIcon />
+        <span>Connexion sécurisée • Vos données sont protégées</span>
+      </div>
     </div>
   );
 };

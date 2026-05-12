@@ -68,7 +68,10 @@
     "no_votes_yet": "Soyez le premier",
     "start_discussion": "Commencer une discussion",
     "discussion": "Discussion",
-    "participants": "participants"
+    "participants": "participants",
+    "vote_singular": "participant",
+    "confiance": "Confiance",
+    "reserve": "Réserve"
   },
   "insights": {
     "title": "INSIGHTS IA",
@@ -205,6 +208,12 @@
     "share_your_view": "Partagez votre point de vue",
     "top_contributions": "Top contributions",
     "external_sources": "Sources externes"
+  },
+  "comments": {
+    "anonymous": "Anonyme",
+    "proof": "Preuve",
+    "view_all": "Voir les {{count}} commentaires",
+    "view_all_one": "Voir le commentaire"
   },
   "live": {
     "title": "Ce qui se passe maintenant",
