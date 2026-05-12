@@ -503,11 +503,11 @@ export default function ChatPage() {
                           {msg.role === 'assistant' ? formatRichContent(msg.content) : (
                             <p className="whitespace-pre-wrap">{msg.content}</p>
                           )}
-                          {msg.provider && (
+                          {/* {msg.provider && (
                             <div className="text-[10px] mt-2 opacity-70" style={{ color: textMuted }}>
                               via {msg.provider}
                             </div>
-                          )}
+                          )}*/}
                         </div>
                         {/* Bouton copier amélioré */}
                         <button

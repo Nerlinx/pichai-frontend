@@ -21,7 +21,8 @@
     "clear_search": "Effacer la recherche",
     "load_more": "Charger plus",
     "scroll_left": "Défiler vers la gauche",
-    "scroll_right": "Défiler vers la droite"
+    "scroll_right": "Défiler vers la droite",
+    "back" : "Retour"
   },
   "filter": {
     "filter_by": "FILTRER PAR",

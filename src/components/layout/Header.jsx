@@ -546,7 +546,8 @@ const UserDropdown = ({ user, onLogout }) => {
             <ChatBubbleLeftRightIcon style={{ width: 16 }} /> {t('dashboard.my_discussions')}
           </button>
           <button className="ph-user-dropdown-item" onClick={() => handleClick('/impact')}>
-            <CpuChipIcon style={{ width: 16 }} /> {t('dashboard.my_impact')}
+            { /*<CpuChipIcon style={{ width: 16 }} /> */}
+            {t('dashboard.my_impact')}
           </button>
           <div className="ph-user-dropdown-separator" />
           <button className="ph-user-dropdown-item" onClick={() => handleClick('/parametres')}>

@@ -594,7 +594,8 @@ function AIAnalysisPanel({ claimSlug }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <DocumentTextIcon style={{ width: 18, height: 18, color: mutedColor }} />
                 <h3 style={{ fontSize: 15, fontWeight: 600, color: textColor, margin: 0 }}>
-                  {t('analysis.detailed_analysis')}
+                 { /* {t('analysis.detailed_analysis')} */}
+                  Analyse approfondie
                 </h3>
               </div>
               <FormattedText text={result.analyse} />
@@ -804,7 +805,10 @@ export default function AIAnalysisPage() {
           <button onClick={() => navigate(`/chat/${slug}`, { state: { claimTitle: claim?.title } })}
             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 16px', borderRadius: 40, border: 'none', backgroundColor: 'transparent', color: mutedColor, fontSize: 14, fontFamily: 'Inter, sans-serif', cursor: 'pointer', flexShrink: 0 }}>
             <SparklesIcon style={{ width: 16 }} />
-            <span className="tab-label-full">{t('analysis.tab_chat')}</span>
+            <span className="tab-label-full">
+            {/*{t('analysis.tab_chat')} */}
+            PichAI Chat
+            </span>
             <span className="tab-label-short" style={{ display: 'none' }}>Chat</span>
           </button>
         </div>
