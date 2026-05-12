@@ -5,6 +5,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
+import ProtectedRoute from './routes/ProtectedRoute';
 import { AuthProvider } from './hooks/useUser';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
