@@ -53,10 +53,10 @@ const SEMANTIC = {
 
 // ── HERO SLIDES ─────────────────────────────────────────────────
 const SLIDES = [
-  { id: 1, eyebrowKey: 'hero.slide1.eyebrow', headlineKey: 'hero.slide1.headline', subKey: 'hero.slide1.sub', ctaKey: 'hero.slide1.cta', ctaHref: '/', accent: '#4A9EFF', bg: '#040C1E', pattern: 'constellation', statValue: '2,400+', statLabelKey: 'hero.slide1.statLabel' },
-  { id: 2, eyebrowKey: 'hero.slide2.eyebrow', headlineKey: 'hero.slide2.headline', subKey: 'hero.slide2.sub', ctaKey: 'hero.slide2.cta', ctaHref: '/predictions', accent: '#00D68F', bg: '#020F0A', pattern: 'constellation', statValue: '94%', statLabelKey: 'hero.slide2.statLabel' },
+  { id: 1, eyebrowKey: 'hero.slide1.eyebrow', headlineKey: 'hero.slide1.headline', subKey: 'hero.slide1.sub', ctaKey: 'hero.slide1.cta', ctaHref: '/', accent: '#4A9EFF', bg: '#040C1E', pattern: 'constellation', statValue: '', statLabelKey: 'hero.slide1.statLabel' },
+  { id: 2, eyebrowKey: 'hero.slide2.eyebrow', headlineKey: 'hero.slide2.headline', subKey: 'hero.slide2.sub', ctaKey: 'hero.slide2.cta', ctaHref: '/predictions', accent: '#00D68F', bg: '#020F0A', pattern: 'constellation', statValue: '', statLabelKey: 'hero.slide2.statLabel' },
   { id: 3, eyebrowKey: 'hero.slide3.eyebrow', headlineKey: 'hero.slide3.headline', subKey: 'hero.slide3.sub', ctaKey: 'hero.slide3.cta', ctaHref: '/insights', accent: '#A78BFA', bg: '#08040F', pattern: 'constellation', statValue: '12ms', statLabelKey: 'hero.slide3.statLabel' },
-  { id: 4, eyebrowKey: 'hero.slide4.eyebrow', headlineKey: 'hero.slide4.headline', subKey: 'hero.slide4.sub', ctaKey: 'hero.slide4.cta', ctaHref: '/dashboard', accent: '#FF6B6B', bg: '#0F0404', pattern: 'constellation', statValue: '38', statLabelKey: 'hero.slide4.statLabel' },
+  { id: 4, eyebrowKey: 'hero.slide4.eyebrow', headlineKey: 'hero.slide4.headline', subKey: 'hero.slide4.sub', ctaKey: 'hero.slide4.cta', ctaHref: '/dashboard', accent: '#FF6B6B', bg: '#0F0404', pattern: 'constellation', statValue: '16', statLabelKey: 'hero.slide4.statLabel' },
 ];
 
 // ── PATTERN CONSTELLATION CITOYENNE ──────────────────────────────
