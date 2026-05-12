@@ -34,5 +34,11 @@
   "energy": "Énergie (EDH)",
   "roads_transport": "Routes & transport",
   "water_sanitation": "Eau & assainissement",
-  "dashboard.my_impact" : "Mon impact"
+  "dashboard.my_impact": "Mon impact",
+  "dashboard.my_dashboard": "Tableau de bord",
+  "dashboard.followed_claims": "Sujets suivis",
+  "dashboard.my_discussions": "Mes discussions",
+  "dashboard.settings": "Préférences",
+  "dashboard.upgrade_pro": "Passer à Pro",
+  "header.logout": "Déconnexion"
 }

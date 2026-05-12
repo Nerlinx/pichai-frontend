@@ -932,7 +932,8 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
                   onClick={onChatToggle || (() => window.location.href = '/chat')}
                   style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px' }}
                 >
-                  <CpuChipIcon style={{ width: 16 }} /> PichAI Chat
+                  { /* <CpuChipIcon style={{ width: 16 }} /> */}
+                  PichAI Chat
                 </button>
                 <UserDropdown user={user} onLogout={handleLogout} />
               </>

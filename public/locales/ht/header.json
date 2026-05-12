@@ -33,5 +33,12 @@
   "education": "Edikasyon",
   "energy": "Enèji (EDH)",
   "roads_transport": "Wout ak Transpò",
-  "water_sanitation": "Dlo ak Asenisman"
+  "water_sanitation": "Dlo ak Asenisman",
+  "dashboard.my_impact": "Enpak mwen",
+  "dashboard.my_dashboard": "Tablo kontwòl",
+  "dashboard.followed_claims": "Sijè m ap swiv",
+  "dashboard.my_discussions": "Diskisyon mwen yo",
+  "dashboard.settings": "Preferans",
+  "dashboard.upgrade_pro": "Pase Pro",
+  "header.logout": "Dekonekte"
 }
