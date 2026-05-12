@@ -116,9 +116,9 @@ const LoginPage = () => {
             />
             {errors.password && <p className="mt-1 text-sm text-red-600 text-center">{errors.password}</p>}
             <div className="mt-1 text-right">
-              <Link to="/mot-de-passe-oublie" className="text-xs text-gray-400 hover:text-gray-600 underline">
+              {/*<Link to="/mot-de-passe-oublie" className="text-xs text-gray-400 hover:text-gray-600 underline">
                 Mot de passe oublié ?
-              </Link>
+              </Link>*/}
             </div>
           </div>
 
