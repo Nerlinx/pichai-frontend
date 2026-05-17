@@ -388,7 +388,7 @@ const MOCK_CATEGORIES = [
 const MOCK_DASHBOARD = {
   personal: {
     user: {
-      id: 1, username: 'user', email: 'userpichai.tech',
+      id: 1, username: 'user', email: 'user@pichai.tech',
       first_name: 'User', last_name: 'PichAI',
       is_verified: true, trust_score: 0.85, contribution_score: 450,
     },
@@ -398,7 +398,7 @@ const MOCK_DASHBOARD = {
   quick_stats: {
     total_events      : MOCK_CLAIMS.length,
     active_events     : MOCK_CLAIMS.length,
-    total_participants: MOCK_CLAIMS.reduce((s, c) => s + (c.total_votes || 0), 0),
+    total_participants: MOCK_CLAIMS.reduce((s, c) => s + (c.total_votess || 0), 0),
     accuracy_rate     : 74,
     resolved_events   : 0,
     avg_consensus     : 45,
@@ -463,15 +463,6 @@ export const eventsAPI = {
       { delay: 300 }
     );
   },
-
-  // getEventById: (claimId) => {
-  //   const mock = MOCK_CLAIMS.find(c => c.id === parseInt(claimId));
-  //   return handleApiCall(
-  //     () => api.get(`/api/v1/claims/${claimId}/detail`),
-  //     { event: mock ? normalizeClaim(mock) : normalizeClaim(MOCK_CLAIMS[0]) },
-  //     { delay: 200 }
-  //   );
-  // },
 
 
   getEventById : (slugOrId) => {
@@ -788,43 +779,6 @@ export const discussionsAPI = {
     ),
 };
 
-// ═══════════════════════════════════════════════════════════════
-// EXEMPLES D'UTILISATION DANS LES COMPOSANTS
-// ═══════════════════════════════════════════════════════════════
-//
-// // Charger les commentaires
-// const res = await discussionsAPI.getComments(claimId, { sort: 'recent', limit: 10 });
-// const { comments, total, type_counts } = res.data;
-//
-// // Filtrer par type
-// const preuves = await discussionsAPI.getComments(claimId, { comment_type: 'proof' });
-//
-// // Poster un commentaire
-// const res = await discussionsAPI.postComment(claimId, {
-//   content     : 'Mwen wè sa ak je m pou kò m nan Pòtoprens.',
-//   comment_type: 'proof',
-//   lang        : 'ht',
-//   department  : 'Ouest',
-// });
-//
-// // Signaler utile
-// await discussionsAPI.signalComment(commentId, 'helpful');
-//
-// // Signaler spam
-// await discussionsAPI.signalComment(commentId, 'spam');
-//
-// // Analyse IA complète (RAG)
-// const { data } = await discussionsAPI.getAnalysis(claimId);
-// console.log(data.analysis.summary);
-//
-// // Poser une question à l'IA
-// const { data } = await discussionsAPI.askAI(claimId, 'Ki prèv ki genyen pou sa ?');
-// console.log(data.answer);
-//
-// // Stats rapides pour une card
-// const { data } = await discussionsAPI.getCommentStats(claimId);
-// console.log(`${data.total_comments} discussions`);
-
 //---------------------------------------------------------------------------------------------------------------
 
 
@@ -1003,16 +957,7 @@ export const collectiveAPI = {
   getUserPredictions  : ()  => api.get('/api/v1/collective/user/predictions').catch(() => ({ data: [] })),
 };
 
-// ═══════════════════════════════════════════════════════════════
-// ADMIN API
-// ═══════════════════════════════════════════════════════════════
-export const adminAPI = {
-  getDashboard: (p = {}) =>
-    handleApiCall(
-      () => api.get('/api/v1/admin/dashboard', { params: p }),
-      { active_users: 0, new_claims: 0, new_predictions: 0 }
-    ),
-};
+
 
 // ═══════════════════════════════════════════════════════════════
 // HAPPENING + INSIGHTS
@@ -1038,6 +983,298 @@ export const fetchInsights = async () => {
     return [];
   }
 };
+
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN CLAIMS API — création, modification, gestion
+// ═══════════════════════════════════════════════════════════════
+export const claimsAdminAPI = {
+
+  // ── Créer un nouveau claim ─────────────────────────────────
+  // POST /api/v1/claims/
+  // Body : { title, description, claimant, claimant_type, claim_date, category_id, department, ... }
+  createClaim: (data) =>
+    handleApiCall(
+      () => api.post('/api/v1/claims/', data),
+      { id: Date.now(), slug: 'nouveau-claim', ...data },
+      { useMock: false }
+    ),
+
+  // ── Modifier le statut d'un claim ─────────────────────────
+  // PATCH /api/v1/admin/claims/{id}/status
+  // Body : { status: "pending" | "in_progress" | "verified" | "rejected" | "archived" }
+  updateClaimStatus: (claimId, status) =>
+    handleApiCall(
+      () => api.patch(`/api/v1/admin/claims/${claimId}/status`, { status }),
+      { claim_id: claimId, new_status: status },
+      { useMock: false }
+    ),
+
+  // ── Modifier un claim existant ─────────────────────────────
+  // PUT /api/v1/claims/{id}
+  // Body : champs à mettre à jour
+  updateClaim: (claimId, data) =>
+    handleApiCall(
+      () => api.put(`/api/v1/claims/${claimId}`, data),
+      { id: claimId, ...data },
+      { useMock: false }
+    ),
+
+  // ── Supprimer un claim ─────────────────────────────────────
+  // DELETE /api/v1/claims/{id}
+  deleteClaim: (claimId) =>
+    handleApiCall(
+      () => api.delete(`/api/v1/claims/${claimId}`),
+      { success: true },
+      { useMock: false }
+    ),
+
+  // ── Activer / Désactiver un claim ──────────────────────────
+  // Alias sémantiques de updateClaimStatus
+  activateClaim : (claimId) =>
+    claimsAdminAPI.updateClaimStatus(claimId, 'in_progress'),
+  verifyClaim   : (claimId) =>
+    claimsAdminAPI.updateClaimStatus(claimId, 'verified'),
+  rejectClaim   : (claimId) =>
+    claimsAdminAPI.updateClaimStatus(claimId, 'rejected'),
+  archiveClaim  : (claimId) =>
+    claimsAdminAPI.updateClaimStatus(claimId, 'archived'),
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+// CATEGORIES API COMPLET — détail, stats, par slug
+// ═══════════════════════════════════════════════════════════════
+export const categoriesAdminAPI = {
+
+  // ── Détail d'une catégorie ─────────────────────────────────
+  // GET /api/v1/categories/{id}
+  getCategoryById: (categoryId) =>
+    handleApiCall(
+      () => api.get(`/api/v1/categories/${categoryId}`),
+      MOCK_CATEGORIES.find(c => c.id === categoryId) || MOCK_CATEGORIES[0],
+      { delay: 200 }
+    ),
+
+  // ── Catégorie par slug ─────────────────────────────────────
+  // GET /api/v1/categories/slug/{slug}
+  getCategoryBySlug: (slug) =>
+    handleApiCall(
+      () => api.get(`/api/v1/categories/slug/${slug}`),
+      MOCK_CATEGORIES.find(c => c.slug === slug) || MOCK_CATEGORIES[0],
+      { delay: 200 }
+    ),
+
+  // ── Stats d'une catégorie ──────────────────────────────────
+  // GET /api/v1/categories/{id}/stats
+  // Retourne : { total_claims, avg_confidence, verified_count, ... }
+  getCategoryStats: (categoryId) =>
+    handleApiCall(
+      () => api.get(`/api/v1/categories/${categoryId}/stats`),
+      {
+        category_id    : categoryId,
+        total_claims   : 0,
+        avg_confidence : 0,
+        verified_count : 0,
+        pending_count  : 0,
+        total_votes    : 0,
+      },
+      { delay: 200 }
+    ),
+
+  // ── Créer une catégorie (admin) ────────────────────────────
+  // POST /api/v1/categories/
+  createCategory: (data) =>
+    handleApiCall(
+      () => api.post('/api/v1/categories/', data),
+      { id: Date.now(), ...data },
+      { useMock: false }
+    ),
+
+  // ── Modifier une catégorie (admin) ─────────────────────────
+  // PUT /api/v1/categories/{id}
+  updateCategory: (categoryId, data) =>
+    handleApiCall(
+      () => api.put(`/api/v1/categories/${categoryId}`, data),
+      { id: categoryId, ...data },
+      { useMock: false }
+    ),
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+// EVIDENCE API — soumission et gestion des preuves
+// ═══════════════════════════════════════════════════════════════
+export const evidenceAPI = {
+
+  // ── Soumettre une preuve ───────────────────────────────────
+  // POST /api/v1/claims/{slug}/evidence
+  // Body : { title, url, description, source_type }
+  // source_type : "article" | "video" | "document" | "official_statement" | "social_media"
+  submitEvidence: (claimSlugOrId, data) =>
+    handleApiCall(
+      () => api.post(`/api/v1/claims/${claimSlugOrId}/evidence`, {
+        title      : data.title,
+        url        : data.url        || '',
+        description: data.description|| '',
+        source_type: data.source_type|| 'article',
+      }),
+      {
+        message          : 'Preuve soumise — en attente de modération',
+        evidence_id      : Date.now(),
+        credibility_score: null,
+        status           : 'pending_moderation',
+      },
+      { useMock: false }
+    ),
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+// EVENTS API DÉDIÉ — endpoint /events/active
+// ═══════════════════════════════════════════════════════════════
+export const activeEventsAPI = {
+
+  // ── Events actifs ──────────────────────────────────────────
+  // GET /api/v1/events/active
+  getActive: (params = {}) =>
+    handleApiCall(
+      () => api.get('/api/v1/events/active', { params }),
+      {
+        events: MOCK_CLAIMS.slice(0, 8).map(c => ({
+          id          : c.id,
+          slug        : c.slug || String(c.id),
+          title       : c.title,
+          category    : c.category,
+          status      : c.status,
+          total_votes : c.total_votes || 0,
+          created_at  : c.created_at,
+        })),
+        total: 8,
+      },
+      { delay: 300 }
+    ),
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+// TRANSLATIONS API
+// ═══════════════════════════════════════════════════════════════
+export const translationsAPI = {
+
+  // ── Traduire un texte FR → KT ─────────────────────────────
+  // POST /api/v1/translate
+  translate: (text, sourceLang = 'fr', targetLang = 'ht') =>
+    handleApiCall(
+      () => api.post('/api/v1/translate', {
+        text,
+        source_lang: sourceLang,
+        target_lang: targetLang,
+      }),
+      { translated_text: text, source_lang: sourceLang, target_lang: targetLang },
+      { useMock: false }
+    ),
+
+  // ── Traduire un claim complet ──────────────────────────────
+  translateClaim: async (claim) => {
+    const fields = [
+      { key: 'title',             value: claim.title             || '' },
+      { key: 'description',       value: claim.description       || '' },
+      { key: 'short_description', value: claim.short_description || '' },
+      { key: 'claimant',          value: claim.claimant          || '' },
+    ].filter(f => f.value);
+
+    const results = await Promise.allSettled(
+      fields.map(f => translationsAPI.translate(f.value))
+    );
+
+    const translated = {};
+    fields.forEach((f, i) => {
+      if (results[i].status === 'fulfilled') {
+        translated[`${f.key}_ht`] = results[i].value?.data?.translated_text || f.value;
+      }
+    });
+
+    return translated;
+    // Retourne : { title_ht, description_ht, short_description_ht, claimant_ht }
+  },
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN API COMPLET — vue d'ensemble, modération, utilisateurs
+// ═══════════════════════════════════════════════════════════════
+export const adminAPI = {
+
+  // ── Vue d'ensemble ─────────────────────────────────────────
+  getOverview: () =>
+    handleApiCall(
+      () => api.get('/api/v1/admin/overview'),
+      {
+        claims  : { total: 0, pending: 0, verified: 0, new_24h: 0 },
+        votes   : { total: 0, new_24h: 0 },
+        comments: { total: 0, pending_review: 0, new_24h: 0 },
+        users   : { total: 0, new_24h: 0, active: 0 },
+      },
+      { useMock: false }
+    ),
+
+  // ── Claims admin ───────────────────────────────────────────
+  getClaims: (params = {}) =>
+    handleApiCall(
+      () => api.get('/api/v1/admin/claims', { params }),
+      { total: 0, claims: [] },
+      { useMock: false }
+    ),
+
+  updateClaimStatus: (claimId, status) =>
+    handleApiCall(
+      () => api.patch(`/api/v1/admin/claims/${claimId}/status`, { status }),
+      { claim_id: claimId, new_status: status },
+      { useMock: false }
+    ),
+
+  // ── Modération commentaires ────────────────────────────────
+  getFlaggedComments: (params = {}) =>
+    handleApiCall(
+      () => api.get('/api/v1/admin/moderation/comments', { params }),
+      { total: 0, comments: [] },
+      { useMock: false }
+    ),
+
+  moderateComment: (commentId, action) =>
+    handleApiCall(
+      () => api.patch(`/api/v1/admin/moderation/comments/${commentId}`, { action }),
+      { comment_id: commentId, action },
+      { useMock: false }
+    ),
+
+  // ── Utilisateurs ───────────────────────────────────────────
+  getUsers: (params = {}) =>
+    handleApiCall(
+      () => api.get('/api/v1/admin/users', { params }),
+      { total: 0, users: [] },
+      { useMock: false }
+    ),
+
+  updateUserStatus: (userId, action) =>
+    handleApiCall(
+      () => api.patch(`/api/v1/admin/users/${userId}/status`, { action }),
+      { user_id: userId, action },
+      { useMock: false }
+    ),
+
+  updateUserRole: (userId, role) =>
+    handleApiCall(
+      () => api.patch(`/api/v1/admin/users/${userId}/role`, { role }),
+      { user_id: userId, new_role: role },
+      { useMock: false }
+    ),
+
+  // Alias legacy
+  getDashboard: (p = {}) => adminAPI.getOverview(),
+};
+
 
 // ═══════════════════════════════════════════════════════════════
 // HEALTH

@@ -65,7 +65,7 @@ const _useUserState = () => {
       setNotifications(data.notifications || []);
       setUnreadCount(  data.unread_count  || 0);
     } catch (error) {
-      // console.warn('[useUser] Notifications non disponibles :', error);
+      console.warn('[useUser] Notifications non disponibles :', error);
     }
   }, []);
 
@@ -100,7 +100,7 @@ const _useUserState = () => {
 
       } catch (error) {
         if (cancelled) return;
-        // console.error('[useUser] Chargement du profil échoué :', error);
+        console.error('[useUser] Chargement du profil échoué :', error);
         if (_is401(error)) _clearSession();
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -119,40 +119,68 @@ const _useUserState = () => {
    * @param {{ email: string, password: string }} credentials
    * @returns {{ success: boolean, user?: object, error?: string }}
    */
+  // const login = useCallback(async (credentials) => {
+  //   try {
+  //     // authAPI.login() → { data: { access_token, refresh_token, user? } }
+  //     const loginRes = await authAPI.login(credentials);
+  //     const loginData = loginRes?.data || loginRes;
+
+  //     const token = loginData?.access_token;
+  //     if (!token) throw new Error('Token absent dans la réponse');
+
+  //     localStorage.setItem('access_token', token);
+  //     if (loginData?.refresh_token) {
+  //       localStorage.setItem('refresh_token', loginData.refresh_token);
+  //     }
+
+  //     // Récupérer le profil complet
+  //     const profileRes = await authAPI.getCurrentUser();
+  //     const userData = profileRes?.data?.user || profileRes?.data || profileRes;
+
+  //     setUser(userData);
+  //     await refreshNotifications();
+
+  //     return { success: true, user: userData };
+
+  //   } catch (error) {
+  //     localStorage.removeItem('access_token');
+  //     localStorage.removeItem('refresh_token');
+  //     setUser(null);
+
+  //     return {
+  //       success: false,
+  //       error: error?.response?.data?.detail ||
+  //              error?.message               ||
+  //              'Erreur de connexion',
+  //     };
+  //   }
+  // }, [refreshNotifications]);
+
+
   const login = useCallback(async (credentials) => {
     try {
-      // authAPI.login() → { data: { access_token, refresh_token, user? } }
-      const loginRes = await authAPI.login(credentials);
+      const loginRes  = await authAPI.login(credentials);
       const loginData = loginRes?.data || loginRes;
-
-      const token = loginData?.access_token;
-      if (!token) throw new Error('Token absent dans la réponse');
+      const token     = loginData?.access_token;
+      if (!token) throw new Error('Token absent');
 
       localStorage.setItem('access_token', token);
-      if (loginData?.refresh_token) {
-        localStorage.setItem('refresh_token', loginData.refresh_token);
-      }
-
-      // Récupérer le profil complet
       const profileRes = await authAPI.getCurrentUser();
-      const userData = profileRes?.data?.user || profileRes?.data || profileRes;
-
+      const userData   = profileRes?.data?.user || profileRes?.data || profileRes;
       setUser(userData);
       await refreshNotifications();
 
-      return { success: true, user: userData };
+      // ── Redirection selon le rôle ──────────────────────
+      const adminLevel = userData?.admin_level;
+      if (['moderator','editor','admin','super_admin'].includes(adminLevel)) {
+        return { success: true, user: userData, redirect: '/admin/dashboard' };
+      }
+      return { success: true, user: userData, redirect: '/dashboard' };
 
     } catch (error) {
       localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
       setUser(null);
-
-      return {
-        success: false,
-        error: error?.response?.data?.detail ||
-               error?.message               ||
-               'Erreur de connexion',
-      };
+      return { success: false, error: error?.message || 'Erreur de connexion' };
     }
   }, [refreshNotifications]);
 
@@ -166,7 +194,7 @@ const _useUserState = () => {
       await authAPI.logout();
     } catch (error) {
       // Échec silencieux — on déconnecte quand même côté client
-      // console.warn('[useUser] Erreur lors de la déconnexion serveur :', error);
+      console.warn('[useUser] Erreur lors de la déconnexion serveur :', error);
     } finally {
       _clearSession();
     }
@@ -215,11 +243,18 @@ const _useUserState = () => {
     updateProfile,
 
     // Raccourcis profil (valeurs par défaut sûres)
+    // Raccourcis profil (valeurs par défaut sûres)
     userLevel          : user?.level               ?? 1,
     credibilityScore   : user?.credibility_score   ?? 0,
     totalContributions : user?.total_contributions ?? 0,
     userRole           : user?.role                ?? 'citizen',
-    isAdmin            : ['admin', 'moderator', 'editor'].includes(user?.role),
+
+    // Rôles admin — basés sur admin_level retourné par /me
+    adminLevel   : user?.admin_level || null,
+    isAdmin      : ['moderator','editor','admin','super_admin'].includes(user?.admin_level),
+    isModerator  : ['moderator','admin','super_admin'].includes(user?.admin_level),
+    isEditor     : ['editor','admin','super_admin'].includes(user?.admin_level),
+    isSuperAdmin : user?.admin_level === 'super_admin',
   };
 };
 

@@ -1,6 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
 // /frontend/src/components/layout/Header.jsx
-// PICH AI — Header post‑connexion orienté “impact & activité”
 // ═══════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -491,7 +490,7 @@ const ResourcesDropdown = ({ darkModeToggle, theme }) => {
   );
 };
 
-const UserDropdown = ({ user, onLogout }) => {
+const UserDropdown = ({ user, onLogout, isAdminUser = false  }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const { t } = useTranslation('header');
@@ -536,8 +535,8 @@ const UserDropdown = ({ user, onLogout }) => {
             </div>
           </div>
           <div className="ph-user-dropdown-separator" />
-          <button className="ph-user-dropdown-item" onClick={() => handleClick('/dashboard')}>
-            <Bars3Icon style={{ width: 16 }} /> {t('dashboard.my_dashboard')}
+          <button className="ph-user-dropdown-item" onClick={() => handleClick(isAdminUser ? '/admin/dashboard' : '/dashboard')}>
+            <Bars3Icon style={{ width: 16 }} /> {isAdminUser ? 'Administration' : t('dashboard.my_dashboard')}
           </button>
           <button className="ph-user-dropdown-item" onClick={() => handleClick('/suivis')}>
             <HeartIcon style={{ width: 16 }} /> {t('dashboard.followed_claims')}
@@ -546,13 +545,21 @@ const UserDropdown = ({ user, onLogout }) => {
             <ChatBubbleLeftRightIcon style={{ width: 16 }} /> {t('dashboard.my_discussions')}
           </button>
           <button className="ph-user-dropdown-item" onClick={() => handleClick('/impact')}>
-            { /*<CpuChipIcon style={{ width: 16 }} /> */}
-            {t('dashboard.my_impact')}
+            <CpuChipIcon style={{ width: 16 }} /> {t('dashboard.my_impact')}
           </button>
           <div className="ph-user-dropdown-separator" />
           <button className="ph-user-dropdown-item" onClick={() => handleClick('/parametres')}>
             <Cog6ToothIcon style={{ width: 16 }} /> {t('dashboard.settings')}
           </button>
+
+          {['moderator','editor','admin','super_admin'].includes(user?.admin_level) && (
+            <>
+              <div className="ph-user-dropdown-separator" />
+              <button className="ph-user-dropdown-item" onClick={() => handleClick('/admin/dashboard')}>
+                <ShieldCheckIcon style={{ width: 16 }} /> Administration
+              </button>
+            </>
+          )}
           {!isPro ? (
             <button className="ph-user-dropdown-item" onClick={() => handleClick('/pro')}>
               <BoltIcon style={{ width: 16 }} /> {t('dashboard.upgrade_pro')}
@@ -579,17 +586,9 @@ const NotificationBell = ({ count = 0, onClick }) => (
   </button>
 );
 
+// Le drawer mobile accessible depuis le burger (ou le bouton utilisateur)
 const MobileDrawer = ({
-  isOpen,
-  onClose,
-  isActive,
-  searchQuery,
-  setSearchQuery,
-  darkModeToggle,
-  theme,
-  isAuthenticated,
-  user,
-  onLogout,
+  isOpen, onClose, isActive, searchQuery, setSearchQuery, darkModeToggle, theme, isAuthenticated, user, onLogout, isAdminUser = false
 }) => {
   const [closing, setClosing] = useState(false);
   const { t, i18n } = useTranslation('header');
@@ -737,8 +736,11 @@ const MobileDrawer = ({
                   </div>
                 </div>
               </div>
-              <Link to="/dashboard" onClick={handleClose} className="ph-drawer-btn-outline" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
-                {t('dashboard.my_dashboard')}
+              <Link to={isAdminUser ? '/admin/dashboard' : '/dashboard'} onClick={handleClose} className="ph-drawer-btn-outline" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
+                {isAdminUser ? 'Administration' : t('dashboard.my_dashboard')}
+              </Link>
+              <Link to="/suivis" onClick={handleClose} className="ph-drawer-btn-outline" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
+                {t('dashboard.followed_claims')}
               </Link>
               <Link to="/suivis" onClick={handleClose} className="ph-drawer-btn-outline" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
                 {t('dashboard.followed_claims')}
@@ -752,6 +754,11 @@ const MobileDrawer = ({
               <Link to="/parametres" onClick={handleClose} className="ph-drawer-btn-outline" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
                 {t('dashboard.settings')}
               </Link>
+              {['moderator','editor','admin','super_admin'].includes(user?.admin_level) && (
+                <Link to="/admin/dashboard" onClick={handleClose} className="ph-drawer-btn-outline" style={{ width:'100%', textAlign:'center', display:'block', color:'var(--hdr-accent)' }}>
+                  Administration
+                </Link>
+              )}
               <button
                 onClick={() => { handleClose(); onLogout?.(); }}
                 style={{
@@ -780,9 +787,12 @@ const MobileDrawer = ({
   );
 };
 
+// ═══════════════════════════════════════════════════════════════
+// HEADER PRINCIPAL
+// ═══════════════════════════════════════════════════════════════
 const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread }) => {
   const location = useLocation();
-  const navigate = useNavigate();                    
+  const navigate = useNavigate();                     
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -797,11 +807,12 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
 
   const handleLogout = () => {
     isLoggingOut.current = true;
-    logout();                                        
-    navigate('/');                                   
+    const isAdmin = ['moderator','editor','admin','super_admin'].includes(user?.admin_level);
+    logout();
+    navigate(isAdmin ? '/connexion' : '/');
   };
 
-
+  // Surveillance de l’expiration de session
   useEffect(() => {
     // Réinitialise le drapeau après une déconnexion volontaire
     if (isLoggingOut.current && !isAuthenticated) {
@@ -823,7 +834,11 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
   );
 
   const isDashboard = location.pathname.startsWith('/dashboard');
-  const showDashboardButton = isAuthenticated && !isDashboard;
+  const isAdminPage = location.pathname.startsWith('/admin');
+  const adminLevel = user?.admin_level;
+  const isAdminUser = ['moderator','editor','admin','super_admin'].includes(adminLevel);
+  const dashboardPath = isAdminUser ? '/admin/dashboard' : '/dashboard';
+  const showDashboardButton = isAuthenticated && !isDashboard && !isAdminPage;
 
   const showImpactLink = isAuthenticated && !isDashboard;
 
@@ -851,7 +866,7 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
             gap: 16,
           }}
         >
-
+          {/* Gauche : burger (dashboard) ou menu mobile + logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {isDashboard && (
               <button className="ph-burger" onClick={onToggleSidebar} aria-label="Menu">
@@ -872,7 +887,7 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
             </Link>
           </div>
 
-       
+          {/* Barre de recherche (dashboard uniquement) */}
           {isDashboard && (
             <div className="ph-search-wrapper" style={{ display: 'flex' }}>
               <MagnifyingGlassIcon className="ph-search-icon" />
@@ -886,7 +901,7 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
             </div>
           )}
 
-          
+          {/* Navigation centrale (publique + connecté) */}
           {!isDashboard && (
             <nav
               className="ph-desktop-nav"
@@ -914,7 +929,6 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
                   className={`ph-nav-link${isActive('/impact') ? ' is-active' : ''}`}
                   style={{ marginLeft: 8 }}
                 >
-                  {/* <ArrowTrendingUpIcon style={{ width: 14, marginRight: 4 }} /> */}
                   {t('dashboard.my_impact')}
                 </Link>
               )}
@@ -933,10 +947,9 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
                   onClick={onChatToggle || (() => window.location.href = '/chat')}
                   style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px' }}
                 >
-                  { /* <CpuChipIcon style={{ width: 16 }} /> */}
                   PichAI Chat
                 </button>
-                <UserDropdown user={user} onLogout={handleLogout} />
+                <UserDropdown user={user} onLogout={handleLogout} isAdminUser={isAdminUser} />
               </>
             ) : isAuthenticated ? (
               <>
@@ -944,15 +957,15 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
                   <>
                     <ResourcesDropdown darkModeToggle={darkModeToggle} theme={theme} />
                     <NotificationBell count={unread} onClick={() => window.location.href = '/notifications'} />
-                    <Link to="/dashboard" className="ph-btn-light">
-                      Dashboard
+                    <Link to={dashboardPath} className="ph-btn-light">
+                      {isAdminUser ? 'Administration' : 'Dashboard'}
                     </Link>
                   </>
                 ) : (
                   <>
                     <ResourcesDropdown darkModeToggle={darkModeToggle} theme={theme} />
                     <NotificationBell count={unread} onClick={() => window.location.href = '/notifications'} />
-                    <UserDropdown user={user} onLogout={handleLogout} />
+                    <UserDropdown user={user} onLogout={handleLogout} isAdminUser={isAdminUser} />
                   </>
                 )}
               </>
@@ -965,7 +978,7 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
             )}
           </div>
 
-          
+          {/* Boutons mobiles */}
           {!isDashboard && !isAuthenticated && (
             <Link to="/connexion" className="ph-mobile-login">{t('login')}</Link>
           )}
@@ -974,10 +987,9 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
               <UserCircleIcon style={{ width: 24, height: 24 }} />
             </button>
           )}
-          {showDashboardButton && !isDashboard && (
-            <Link to="/dashboard" className="ph-mobile-dashboard-btn">
-          
-              Dashboard
+          {showDashboardButton && !isAdminPage && (
+            <Link to={dashboardPath} className="ph-mobile-dashboard-btn">
+              {isAdminUser ? 'Administration' : 'Dashboard'}
             </Link>
           )}
         </div>
@@ -994,6 +1006,7 @@ const Header = ({ onToggleSidebar, onChatToggle, unreadNotifications: propUnread
         isAuthenticated={isAuthenticated}
         user={user}
         onLogout={handleLogout}
+        isAdminUser={isAdminUser}
       />
     </>
   );
