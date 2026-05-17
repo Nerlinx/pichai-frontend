@@ -28,6 +28,7 @@ const LoginPage = () => {
 
     try {
       const result = await login(formData);
+      // const result = await login(credentials);
 
       if (!result.success) {
         setErrors({
@@ -47,12 +48,8 @@ const LoginPage = () => {
       const userData = result.user || {};
       const roles = userData.roles || [];
 
-      if (roles.includes('admin') || roles.includes('superadmin')) {
-        navigate('/admin/dashboard');
-      } else if (roles.includes('moderator')) {
-        navigate('/moderator/dashboard');
-      } else {
-        navigate('/dashboard');
+      if (result.success) {
+          navigate(result.redirect || '/');
       }
 
     } catch (error) {
@@ -84,7 +81,7 @@ const LoginPage = () => {
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-800 leading-tight">
             Participez aux sujets qui comptent
           </h1>
-          <p className="text-sm text-gray-500 mt-2">Analysez avec l’appui de l’IA</p>
+          <p className="text-sm text-gray-500 mt-2">Analysez l’actualité avec l’appui de l’IA</p>
           <p className="text-xs text-gray-400 mt-2">Retrouvez vos contributions après connexion</p>
         </div>
 
@@ -115,11 +112,6 @@ const LoginPage = () => {
               }`}
             />
             {errors.password && <p className="mt-1 text-sm text-red-600 text-center">{errors.password}</p>}
-            <div className="mt-1 text-right">
-              {/*<Link to="/mot-de-passe-oublie" className="text-xs text-gray-400 hover:text-gray-600 underline">
-                Mot de passe oublié ?
-              </Link>*/}
-            </div>
           </div>
 
           <button
